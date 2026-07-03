@@ -5,6 +5,8 @@ on:
     # Every 4 hours (6x/day, UTC). main.py rotates through 7 content types
     # (Qur'an, Hadith, Dua, Character, Prophets, Islamic story, Did-you-know)
     # via an absolute slot counter, so all 7 air evenly across the week.
+    # On long-video days (Tue/Thu/Sun) main.py skips the 20:00 slot so the day
+    # stays within YouTube's 10k/day upload quota (5 shorts + 1 long).
     - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:

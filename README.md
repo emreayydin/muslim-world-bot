@@ -6,8 +6,11 @@ automated via GitHub Actions. Modelled on the "Faktastisch" trivia bot pipeline.
 
 ## What it makes
 
-**Shorts (9:16, 30–60s)** — 6 per day, rotating through 7 content types so each
-airs evenly across the week (6 slots/day at 0,4,8,12,16,20 UTC):
+**Shorts (9:16, 30–60s)** — up to 6 per day (6 slots/day at 0,4,8,12,16,20 UTC),
+rotating through 7 content types so each airs evenly across the week. On long-video
+days (Tue/Thu/Sun) the 20:00 slot is skipped so the day stays within YouTube's free
+10k/day upload quota → **5 shorts + 1 long** those days, **6 shorts** otherwise
+(39 shorts + 3 long per week, the free-tier maximum):
 
 | Type | Content |
 |---|---|

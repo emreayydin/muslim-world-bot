@@ -33,6 +33,19 @@ log = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path("output")
 
+# Long-form videos publish on these UTC weekdays (Mon=0 … Sun=6): Tue, Thu, Sun.
+# On those days one short slot is skipped so a day never exceeds YouTube's free
+# upload quota (10,000 units/day; videos.insert = 1,600 → max 6 uploads/day).
+LONG_VIDEO_WEEKDAYS = {1, 3, 6}
+
+
+def _should_skip_for_quota() -> bool:
+    """True on a long-video day's final short slot (20:00 UTC), so those days run
+    5 shorts + 1 long (9,650 units) instead of 6 + 1 (11,250 = over quota)."""
+    now = datetime.utcnow()
+    slot = now.hour // 4                       # 0..5
+    return now.weekday() in LONG_VIDEO_WEEKDAYS and slot == 5
+
 
 def _type_for_now() -> str:
     """Rotates through all content types using an absolute slot counter.
@@ -66,6 +79,15 @@ def _build_description(item: dict) -> str:
 def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     OUTPUT_DIR.mkdir(exist_ok=True)
+
+    auto = content_type is None  # scheduled run (no explicit --type)
+
+    # Respect the daily upload quota only for scheduled, real uploads; a manual
+    # run (explicit --type) or a dry run is never skipped.
+    if auto and not dry_run and _should_skip_for_quota():
+        log.info("Long-video day, final slot: skipping this short to stay within "
+                 "YouTube's daily upload quota (today runs 5 shorts + 1 long).")
+        return None
 
     if content_type is None:
         content_type = _type_for_now()
