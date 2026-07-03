@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.env
+src/client_secrets.json
+src/youtube_token.json
+output/*.mp4
+output/*.mp3
+output/*.png
+output/*.json
+src/output/
+.DS_Store
