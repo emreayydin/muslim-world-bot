@@ -162,13 +162,26 @@ def _draw_title(d, item):
 
 
 def _draw_source(d, source):
-    """Persistent source citation at the bottom (channel policy: always cite)."""
+    """Persistent source citation at the bottom (channel policy: always cite).
+
+    Shrinks to fit and truncates very long citations so it never runs off-frame.
+    """
     if not source:
         return
-    f = _find_font(44)
+    source = source.strip()
+    max_w = VIDEO_WIDTH - 100
+    size = 44
+    f = _find_font(size)
+    while d.textlength(f"— {source}", font=f) > max_w and size > 30:
+        size -= 2
+        f = _find_font(size)
     text = f"— {source}"
+    if d.textlength(text, font=f) > max_w:          # still too long → truncate
+        while source and d.textlength(f"— {source}…", font=f) > max_w:
+            source = source[:-1]
+        text = f"— {source.rstrip(' ,;·')}…"
     w = d.textlength(text, font=f)
-    d.text(((VIDEO_WIDTH - w) / 2, VIDEO_HEIGHT - 180), text, font=f, fill=GOLD,
+    d.text(((VIDEO_WIDTH - w) / 2, VIDEO_HEIGHT - 172), text, font=f, fill=GOLD,
            stroke_width=4, stroke_fill=(0, 0, 0))
 
 

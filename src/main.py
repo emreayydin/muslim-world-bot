@@ -21,8 +21,18 @@ except ImportError:
 
 from generate_content import generate_content, CONTENT_TYPES
 from text_to_speech import generate_audio
+from audio_fx import add_ambience
 from render_video import render_video
 from upload_youtube import upload_short
+
+# Calmer, more reflective narration than the trivia bot (slightly slower voice)
+NARRATION_RATE = "-6%"
+# Ambience bed per content type (all synthesised, halal, no instruments)
+AMBIENCE_KIND = {
+    "quran": "wind", "hadith": "wind", "dua": "night",
+    "akhlaq": "wind", "prophet_story": "night", "islamic_story": "night",
+    "did_you_know": "wind",
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,9 +114,13 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     # 2. Text to speech (returns word-level timing for captions)
     log.info("Generating audio...")
     tts_text = f"{item['hook']} {item['body']} {item.get('cta', '')}".strip()
+    voice_path = str(OUTPUT_DIR / f"voice_{timestamp}.mp3")
+    words = generate_audio(tts_text, voice_path, rate=NARRATION_RATE)
+    log.info(f"Voice: {voice_path} ({len(words)} words)")
+
+    # 2b. Mix a calm halal ambience bed under the voice (word timing unaffected)
     audio_path = str(OUTPUT_DIR / f"audio_{timestamp}.mp3")
-    words = generate_audio(tts_text, audio_path)
-    log.info(f"Audio: {audio_path} ({len(words)} words)")
+    add_ambience(voice_path, audio_path, kind=AMBIENCE_KIND.get(content_type, "wind"))
 
     # 3. Render video (halal montage + animated captions + source line)
     log.info("Rendering video...")

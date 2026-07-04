@@ -56,7 +56,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
   "topic": "Short topic (1-4 words)",
   "intro": "Intro text",
   "facts": [
-    {{"headline": "Short headline (max 40 chars)", "text": "90-130 words", "source": "Exact source"}}
+    {{"headline": "Short headline (max 40 chars)", "text": "90-130 words", "source": "CONCISE citation only, e.g. Qur'an 2:255 or Sahih al-Bukhari 6018 (max ~30 chars)"}}
   ],
   "outro": "Outro text",
   "tags": ["tag1","tag2","tag3","tag4","tag5"],

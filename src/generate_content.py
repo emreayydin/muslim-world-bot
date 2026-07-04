@@ -130,7 +130,7 @@ Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes
   "arabic": "Arabic text if applicable (verse/dua/hadith), else empty string",
   "transliteration": "Simple Latin transliteration if applicable, else empty string",
   "translation": "English meaning of the Arabic if applicable, else empty string",
-  "source": "EXACT source, e.g. Qur'an 2:255 or Sahih al-Bukhari 6018 — required, never empty",
+  "source": "CONCISE citation ONLY — e.g. Qur'an 2:255 or Sahih al-Bukhari 6018. Max ~30 chars, no explanatory sentence. Required, never empty",
   "cta": "Short warm call to follow/comment, e.g. Follow for a daily reminder",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "visual_tags": ["halal English stock-video search term", "term2", "term3"]
