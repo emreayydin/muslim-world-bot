@@ -50,14 +50,14 @@ jobs:
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           PYTHONUNBUFFERED: "1"
         run: |
-          ARGS=""
+          ARGS=()
           if [ -n "${{ github.event.inputs.topic }}" ]; then
-            ARGS="--topic '${{ github.event.inputs.topic }}'"
+            ARGS+=(--topic "${{ github.event.inputs.topic }}")
           fi
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            ARGS="$ARGS --dry-run"
+            ARGS+=(--dry-run)
           fi
-          python main_long.py $ARGS
+          python main_long.py "${ARGS[@]}"
 
       - name: Save history (avoid repeats next run)
         if: ${{ github.event.inputs.dry_run != 'true' }}
