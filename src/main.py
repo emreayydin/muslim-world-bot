@@ -44,17 +44,35 @@ log = logging.getLogger(__name__)
 OUTPUT_DIR = Path("output")
 
 # Long-form videos publish on these UTC weekdays (Mon=0 … Sun=6): Tue, Thu, Sun.
-# On those days one short slot is skipped so a day never exceeds YouTube's free
-# upload quota (10,000 units/day; videos.insert = 1,600 → max 6 uploads/day).
 LONG_VIDEO_WEEKDAYS = {1, 3, 6}
 
+# Self-throttle so the bot paces itself even though GitHub's free cron fires
+# unreliably. The shorts workflow is scheduled far more often than needed (every
+# 2h); these caps decide whether a given run actually uploads. YouTube's free
+# quota = 10,000 units/day, videos.insert = 1,600 → 6 uploads/day max.
+DAILY_UPLOAD_CAP = 6          # total videos (shorts + long) per quota day
+MIN_HOURS_BETWEEN = 3.0       # min spacing between uploads so bursts can't happen
 
-def _should_skip_for_quota() -> bool:
-    """True on a long-video day's final short slot (20:00 UTC), so those days run
-    5 shorts + 1 long (9,650 units) instead of 6 + 1 (11,250 = over quota)."""
-    now = datetime.utcnow()
-    slot = now.hour // 4                       # 0..5
-    return now.weekday() in LONG_VIDEO_WEEKDAYS and slot == 5
+
+def _should_skip_for_quota() -> tuple[bool, str]:
+    """Returns (skip, reason) based on the day's upload count and spacing, so
+    dropped cron triggers get 'caught up' by later ones without exceeding quota."""
+    import history
+    total = history.uploads_in_current_window()
+    shorts = history.uploads_in_current_window(kind="short")
+    gap = history.hours_since_last_upload()
+
+    # Reserve one slot for the long-form video on its days (Tue/Thu/Sun).
+    is_long_day = datetime.utcnow().weekday() in LONG_VIDEO_WEEKDAYS
+    short_cap = DAILY_UPLOAD_CAP - 1 if is_long_day else DAILY_UPLOAD_CAP
+
+    if total >= DAILY_UPLOAD_CAP:
+        return True, f"daily upload cap reached ({total}/{DAILY_UPLOAD_CAP})"
+    if shorts >= short_cap:
+        return True, f"short cap for today reached ({shorts}/{short_cap})"
+    if gap is not None and gap < MIN_HOURS_BETWEEN:
+        return True, f"only {gap:.1f}h since last upload (min {MIN_HOURS_BETWEEN}h)"
+    return False, ""
 
 
 def _type_for_now() -> str:
@@ -94,10 +112,11 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
 
     # Respect the daily upload quota only for scheduled, real uploads; a manual
     # run (explicit --type) or a dry run is never skipped.
-    if auto and not dry_run and _should_skip_for_quota():
-        log.info("Long-video day, final slot: skipping this short to stay within "
-                 "YouTube's daily upload quota (today runs 5 shorts + 1 long).")
-        return None
+    if auto and not dry_run:
+        skip, reason = _should_skip_for_quota()
+        if skip:
+            log.info(f"Skipping this run — {reason}.")
+            return None
 
     if content_type is None:
         content_type = _type_for_now()
