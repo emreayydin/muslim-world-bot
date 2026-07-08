@@ -51,9 +51,21 @@ def run(topic: str = None, dry_run: bool = False, privacy: str = "public"):
     dur = max(s["end"] for s in sections)
     log.info(f"Audio: {audio_path} ({dur/60:.1f} min)")
 
+    # AI images per section (halal: no people/faces) — falls FAL_KEY; sonst Pexels
+    visuals = None
+    if os.environ.get("FAL_KEY"):
+        try:
+            from generate_visuals import visuals_for_sections
+            log.info("Generating AI images (Flux) per section...")
+            visuals = visuals_for_sections(
+                comp, sections, str(OUTPUT_DIR / f"visuals_{ts}"), orientation="landscape",
+                style="reverent, cinematic, peaceful, soft divine light, no people, no faces, Islamic art aesthetic")
+        except Exception as e:
+            log.warning(f"AI images failed ({e}) — using Pexels.")
+
     log.info("Rendering video (16:9)...")
     video_path = str(OUTPUT_DIR / f"long_{ts}.mp4")
-    render_long(comp, audio_path, sections, video_path)
+    render_long(comp, audio_path, sections, video_path, visuals=visuals)
     log.info(f"Video: {video_path}")
 
     thumb_path = str(OUTPUT_DIR / f"long_thumb_{ts}.png")

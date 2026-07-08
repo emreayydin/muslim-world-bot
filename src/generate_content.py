@@ -133,10 +133,13 @@ Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes
   "source": "CONCISE citation ONLY — e.g. Qur'an 2:255 or Sahih al-Bukhari 6018. Max ~30 chars, no explanatory sentence. Required, never empty",
   "cta": "Short warm call to follow/comment, e.g. Follow for a daily reminder",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "visual_tags": ["halal English stock-video search term", "term2", "term3"]
+  "visual_tags": ["halal English stock-video search term", "term2", "term3"],
+  "image_prompts": ["halal English AI-image prompt 1", "2", "3", "4"]
 }}
 
-"visual_tags" must be HALAL b-roll search terms only: nature, sky, stars, ocean, mountains, desert, forest, rain, light rays, mosque architecture, Islamic geometric patterns, calligraphy, candle, prayer beads. Never faces of prophets, never anything inappropriate."""
+"visual_tags" must be HALAL b-roll search terms only: nature, sky, stars, ocean, mountains, desert, forest, rain, light rays, mosque architecture, Islamic geometric patterns, calligraphy, candle, prayer beads. Never faces of prophets, never anything inappropriate.
+
+"image_prompts" = 4 English AI-image prompts illustrating the content, STRICTLY HALAL: only serene scenes — nature, sky, stars, desert, ocean, mountains, mosque architecture, Islamic geometric patterns, arabesque, soft divine light rays, prayer beads, lanterns, old manuscripts (no readable text). ABSOLUTELY NO people, NO faces, NO figures, NEVER any depiction of God, prophets, the Prophet Muhammad, the companions, or the interior of the Kaaba. No text/words in the image. Style: reverent, cinematic, peaceful."""
 
 
 def generate_content(content_type: str = None, avoid: list[str] = None,
@@ -160,7 +163,7 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
     for attempt in range(attempts):
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1024,
+            max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = message.content[0].text.strip()

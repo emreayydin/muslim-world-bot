@@ -55,8 +55,9 @@ Respond with ONLY a JSON object (no markdown, no explanation):
   "title": "Respectful, inviting title (max 70 chars, no clickbait)",
   "topic": "Short topic (1-4 words)",
   "intro": "Intro text",
+  "hook_visual": "halal English AI-image prompt for the intro",
   "facts": [
-    {{"headline": "Short headline (max 40 chars)", "text": "90-130 words", "source": "CONCISE citation only, e.g. Qur'an 2:255 or Sahih al-Bukhari 6018 (max ~30 chars)"}}
+    {{"headline": "Short headline (max 40 chars)", "text": "90-130 words", "source": "CONCISE citation only, e.g. Qur'an 2:255 or Sahih al-Bukhari 6018 (max ~30 chars)", "image_prompt": "halal English AI-image prompt"}}
   ],
   "outro": "Outro text",
   "tags": ["tag1","tag2","tag3","tag4","tag5"],
@@ -64,7 +65,8 @@ Respond with ONLY a JSON object (no markdown, no explanation):
   "category": "{topic}"
 }}
 
-The "facts" list must have exactly 10 entries. "visual_tags" must be HALAL only: nature, sky, ocean, mountains, desert, mosque architecture, islamic patterns, calligraphy, light."""
+The "facts" list must have exactly 10 entries. "visual_tags" must be HALAL only: nature, sky, ocean, mountains, desert, mosque architecture, islamic patterns, calligraphy, light.
+"image_prompt"/"hook_visual" = STRICTLY HALAL AI-image prompts: only serene scenes (nature, sky, stars, desert, ocean, mountains, mosque architecture, arabesque/geometric patterns, soft divine light, lanterns, prayer beads, old manuscripts without readable text). ABSOLUTELY NO people, NO faces, NO figures, NEVER any depiction of God, prophets, the Prophet Muhammad, companions, or the Kaaba interior. No text in the image. Reverent, cinematic, peaceful."""
 
 
 def generate_compilation(topic: str = None, avoid: list[str] = None,
@@ -81,7 +83,7 @@ def generate_compilation(topic: str = None, avoid: list[str] = None,
     for attempt in range(attempts):
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
+            max_tokens=6000,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = message.content[0].text.strip()

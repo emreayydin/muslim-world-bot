@@ -141,11 +141,25 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     audio_path = str(OUTPUT_DIR / f"audio_{timestamp}.mp3")
     add_ambience(voice_path, audio_path, kind=AMBIENCE_KIND.get(content_type, "wind"))
 
+    # 2c. AI images (halal: no people/faces) — falls FAL_KEY gesetzt; sonst Pexels
+    ai_images = None
+    if os.environ.get("FAL_KEY") and item.get("image_prompts"):
+        try:
+            from generate_visuals import images_for_prompts
+            log.info("Generating AI images (Flux)...")
+            ai_images = images_for_prompts(
+                item["image_prompts"], str(OUTPUT_DIR / f"visuals_{timestamp}"),
+                orientation="portrait",
+                style="reverent, cinematic, peaceful, soft divine light, no people, no faces, Islamic art aesthetic")
+        except Exception as e:
+            log.warning(f"AI images failed ({e}) — using Pexels.")
+
     # 3. Render video (halal montage + animated captions + source line)
     log.info("Rendering video...")
     video_path = str(OUTPUT_DIR / f"short_{timestamp}.mp4")
     background = os.environ.get("BACKGROUND_VIDEO_PATH")
-    render_video(item, audio_path, video_path, words=words, background_video=background)
+    render_video(item, audio_path, video_path, words=words, background_video=background,
+                 ai_images=ai_images)
     log.info(f"Video: {video_path}")
 
     if dry_run:
