@@ -141,16 +141,42 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     audio_path = str(OUTPUT_DIR / f"audio_{timestamp}.mp3")
     add_ambience(voice_path, audio_path, kind=AMBIENCE_KIND.get(content_type, "wind"))
 
-    # 2c. AI images (halal: no people/faces) — falls FAL_KEY gesetzt; sonst Pexels
+    # 2c. AI images (halal: no people/faces) — falls FAL_KEY gesetzt; sonst Pexels.
+    #     Mit AI_VIDEO=1 wird zusätzlich das ERSTE Bild per LTX zum echten
+    #     Video-Hook animiert (günstigster Qualitäts-Hebel: ~$0.02/Short).
     ai_images = None
+    hook_video = None
+    IMG_STYLE = ("reverent, cinematic, peaceful, soft divine light, no people, "
+                 "no faces, Islamic art aesthetic")
     if os.environ.get("FAL_KEY") and item.get("image_prompts"):
+        prompts = item["image_prompts"]
+        vis_dir = str(OUTPUT_DIR / f"visuals_{timestamp}")
         try:
-            from generate_visuals import images_for_prompts
-            log.info("Generating AI images (Flux)...")
-            ai_images = images_for_prompts(
-                item["image_prompts"], str(OUTPUT_DIR / f"visuals_{timestamp}"),
-                orientation="portrait",
-                style="reverent, cinematic, peaceful, soft divine light, no people, no faces, Islamic art aesthetic")
+            from generate_visuals import images_for_prompts, flux_image_and_url
+            if os.environ.get("AI_VIDEO") == "1" and prompts:
+                from generate_video import animate_image_url
+                os.makedirs(vis_dir, exist_ok=True)
+                # AI_IMAGE_MAX = number of AI still-images (Ken-Burns). 0 = budget
+                # mode: only the animated hook + free Pexels for the rest.
+                img_max = int(os.environ.get("AI_IMAGE_MAX", str(len(prompts))))
+                log.info(f"Generating AI hook image + animating (LTX)... [img_max={img_max}]")
+                img0, url0 = flux_image_and_url(
+                    prompts[0], os.path.join(vis_dir, "img_0.png"),
+                    orientation="portrait", style=IMG_STYLE)
+                try:
+                    hook_video = animate_image_url(url0, os.path.join(vis_dir, "hook.mp4"))
+                except Exception as e:
+                    log.warning(f"AI hook video failed ({e}) — using Ken-Burns.")
+                if img_max >= 1:
+                    rest = images_for_prompts(prompts[1:img_max], vis_dir, orientation="portrait",
+                                              style=IMG_STYLE) if img_max > 1 else []
+                    ai_images = [img0] + rest
+                else:
+                    ai_images = None  # budget: hook video + Pexels body
+            else:
+                log.info("Generating AI images (Flux)...")
+                ai_images = images_for_prompts(prompts, vis_dir, orientation="portrait",
+                                               style=IMG_STYLE)
         except Exception as e:
             log.warning(f"AI images failed ({e}) — using Pexels.")
 
@@ -159,7 +185,7 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     video_path = str(OUTPUT_DIR / f"short_{timestamp}.mp4")
     background = os.environ.get("BACKGROUND_VIDEO_PATH")
     render_video(item, audio_path, video_path, words=words, background_video=background,
-                 ai_images=ai_images)
+                 ai_images=ai_images, hook_video=hook_video)
     log.info(f"Video: {video_path}")
 
     if dry_run:

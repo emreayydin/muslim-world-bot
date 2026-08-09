@@ -45,6 +45,27 @@ def flux_image(prompt: str, out_path: str, orientation: str = "portrait",
     return _download(r.json()["images"][0]["url"], out_path)
 
 
+def flux_image_and_url(prompt: str, out_path: str, orientation: str = "portrait",
+                       model: str = FACT_MODEL,
+                       style: str = "cinematic, dramatic lighting, highly detailed") -> tuple[str, str]:
+    """Like flux_image but also returns the remote fal URL (needed to feed
+    image-to-video without re-uploading). Returns (local_path, remote_url)."""
+    key = os.environ["FAL_KEY"]
+    body = {
+        "prompt": f"{prompt}, {style}",
+        "image_size": _SIZE.get(orientation, "portrait_16_9"),
+        "num_images": 1,
+        "enable_safety_checker": True,
+    }
+    r = requests.post(f"{FAL_RUN}/{model}", headers={
+        "Authorization": f"Key {key}", "Content-Type": "application/json",
+    }, json=body, timeout=180)
+    if r.status_code != 200:
+        raise RuntimeError(f"fal {model} {r.status_code}: {r.text[:300]}")
+    url = r.json()["images"][0]["url"]
+    return _download(url, out_path), url
+
+
 def images_for_prompts(prompts: list[str], out_dir: str, orientation: str = "portrait",
                        hero_last: bool = True, style: str = "cinematic, dramatic lighting, highly detailed") -> list[str]:
     """Generates one image per prompt. Returns paths in order; skips failures.

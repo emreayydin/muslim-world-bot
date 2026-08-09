@@ -51,6 +51,8 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           FAL_KEY: ${{ secrets.FAL_KEY }}   # AI images; falls back to Pexels if unset
+          AI_VIDEO: "1"                     # animate the hook (first ~5s) via LTX (~$0.02/short)
+          AI_IMAGE_MAX: "0"                 # budget: hook video + free Pexels body (~$0.06/short)
           PYTHONUNBUFFERED: "1"
         run: |
           ARGS=()

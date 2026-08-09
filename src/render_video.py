@@ -277,20 +277,50 @@ def _img_segment(img: str, dur: float, out: str, zoom_in: bool = True):
                    capture_output=True, text=True, check=True)
 
 
-def _build_timed_bg(images: list[str], total: float, work, out_path: str) -> str:
+def _video_fit_segment(clip: str, dur: float, out: str):
+    """Scales/crops a real video clip (e.g. an AI-generated hook) to the canvas,
+    trimmed/looped to `dur`. No zoompan — the clip already has motion."""
+    vf = (f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+          f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},fps=30,setsar=1,format=yuv420p")
+    subprocess.run(["ffmpeg", "-y", "-stream_loop", "-1", "-i", clip, "-t", f"{dur:.2f}",
+                    "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast",
+                    "-crf", "23", "-pix_fmt", "yuv420p", "-r", "30", "-t", f"{dur:.2f}", out],
+                   capture_output=True, text=True, check=True)
+
+
+def _build_timed_bg(images: list[str], total: float, work, out_path: str,
+                    hook_video: str = None) -> str:
     imgs = [i for i in images if i]
-    if not imgs:
+    if not imgs and not hook_video:
         raise RuntimeError("keine KI-Bilder")
-    per = total / len(imgs)
     parts = []
-    for idx, img in enumerate(imgs):
-        seg = str(work / f"aiseg_{idx}.mp4")
-        _img_segment(img, per, seg, zoom_in=(idx % 2 == 0))
-        parts.append(seg)
+    remaining = total
+    # Real AI-video hook plays first (where viewers decide to stay), then the
+    # Ken-Burns image montage fills the rest.
+    if hook_video:
+        hook_dur = min(_probe_duration(hook_video) or 5.0, 6.0, total)
+        hseg = str(work / "hookseg.mp4")
+        _video_fit_segment(hook_video, hook_dur, hseg)
+        parts.append(hseg)
+        remaining = max(0.0, total - hook_dur)
+    if imgs and remaining > 0.3:
+        per = remaining / len(imgs)
+        for idx, img in enumerate(imgs):
+            seg = str(work / f"aiseg_{idx}.mp4")
+            _img_segment(img, per, seg, zoom_in=(idx % 2 == 0))
+            parts.append(seg)
     lst = work / "aisegs.txt"
     lst.write_text("\n".join(f"file '{p}'" for p in parts))
-    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
-                    "-c", "copy", out_path], capture_output=True, text=True, check=True)
+    if hook_video:
+        # Re-encode: the LTX hook's differing time base makes a copy-concat leave
+        # PTS jumps that stop the overlay compositing after the hook.
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                        "-pix_fmt", "yuv420p", "-r", "30", "-vsync", "cfr", "-an", out_path],
+                       capture_output=True, text=True, check=True)
+    else:
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+                        "-c", "copy", out_path], capture_output=True, text=True, check=True)
     return out_path
 
 
@@ -298,7 +328,7 @@ def _build_timed_bg(images: list[str], total: float, work, out_path: str) -> str
 
 def render_video(item: dict, audio_path: str, output_path: str,
                  words: list[dict] = None, background_video: str = None,
-                 ai_images: list[str] = None) -> str:
+                 ai_images: list[str] = None, hook_video: str = None) -> str:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="short_"))
 
@@ -306,13 +336,36 @@ def render_video(item: dict, audio_path: str, output_path: str,
     if total <= 0:
         total = 50.0
 
-    # ----- background: AI images (preferred) -> Pexels montage -> gradient -----
+    # ----- background: AI images (+ optional AI-video hook) -> hook+Pexels -> Pexels -> gradient -----
     ai_bg = None
     if ai_images and any(ai_images):
         try:
-            ai_bg = _build_timed_bg(ai_images, total, work, str(work / "aibg.mp4"))
+            ai_bg = _build_timed_bg(ai_images, total, work, str(work / "aibg.mp4"),
+                                    hook_video=hook_video)
         except Exception as e:
             print(f"KI-Hintergrund fehlgeschlagen ({e}) — nutze Pexels.")
+    elif hook_video:
+        # Budget mode: real AI-video hook for the opening, free Pexels for the rest.
+        try:
+            hook_dur = min(_probe_duration(hook_video) or 5.0, 6.0, total)
+            hseg = str(work / "hookseg.mp4")
+            _video_fit_segment(hook_video, hook_dur, hseg)
+            pex = fetch_background_clips(item.get("content_type", ""), str(work / "clips"),
+                                         count=5, tags=item.get("visual_tags"))
+            if pex and (total - hook_dur) > 0.3:
+                body = _build_montage(pex, total - hook_dur, str(work / "body.mp4"))
+                lst = work / "hp.txt"
+                lst.write_text(f"file '{hseg}'\nfile '{body}'")
+                # Re-encode (not -c copy): the hook comes from LTX with a different
+                # time base, and a copy-concat leaves PTS jumps that break the overlay.
+                subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                                "-pix_fmt", "yuv420p", "-r", "30", "-vsync", "cfr", "-an",
+                                str(work / "aibg.mp4")],
+                               capture_output=True, text=True, check=True)
+                ai_bg = str(work / "aibg.mp4")
+        except Exception as e:
+            print(f"Hook+Pexels fehlgeschlagen ({e}) — nutze Pexels.")
 
     clips = [] if ai_bg else ([background_video] if background_video else
         fetch_background_clips(item.get("content_type", ""), str(work / "clips"),
@@ -321,7 +374,9 @@ def render_video(item: dict, audio_path: str, output_path: str,
     t_arg = ["-t", f"{total:.2f}"]
     if ai_bg:
         bg_input = ["-i", ai_bg]
-        bg_filter = f"[0:v]setsar=1[bg]"
+        # Normalize the timeline: a concat of a real video hook + image segments can
+        # carry PTS jumps that make the overlay compositing stop after the hook.
+        bg_filter = "[0:v]fps=30,setpts=PTS-STARTPTS,setsar=1[bg]"
     elif clips:
         bg = _build_montage(clips, total, str(work / "montage.mp4"))
         bg_input = ["-i", bg]
