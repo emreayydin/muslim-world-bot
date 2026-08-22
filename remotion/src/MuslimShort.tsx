@@ -250,10 +250,11 @@ const Arabic: React.FC<{ text: string }> = ({ text }) => {
       style={{
         textAlign: "center",
         color: "#fff",
-        fontFamily: "'Geeza Pro','Amiri','Scheherazade New',serif",
-        fontSize: 88,
+        fontFamily: "'Amiri','Geeza Pro','Scheherazade New',serif",
+        fontSize: 74,
+        lineHeight: 1.7,
         direction: "rtl",
-        maxWidth: 960,
+        maxWidth: 940,
         margin: "0 auto",
         textShadow: `0 0 22px ${GOLD}, 0 3px 12px rgba(0,0,0,0.7)`,
         opacity: o,
@@ -308,12 +309,32 @@ export const MuslimShort: React.FC<ShortProps> = (props) => {
         </div>
       </AbsoluteFill>
 
-      {/* center: arabic (optional) + captions */}
-      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 70px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 60, alignItems: "center" }}>
-          {arabic ? <Arabic text={arabic} /> : null}
-          <Caption captions={captions} />
-        </div>
+      {/* arabic (optional) sits in the upper-middle band */}
+      {arabic ? (
+        <AbsoluteFill
+          style={{
+            alignItems: "center",
+            justifyContent: "flex-start",
+            paddingTop: 560,
+            paddingLeft: 70,
+            paddingRight: 70,
+          }}
+        >
+          <Arabic text={arabic} />
+        </AbsoluteFill>
+      ) : null}
+
+      {/* captions sit in the lower-middle, clear of the arabic */}
+      <AbsoluteFill
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          paddingLeft: 70,
+          paddingRight: 70,
+          translate: "0px 300px",
+        }}
+      >
+        <Caption captions={captions} />
       </AbsoluteFill>
 
       <Source text={source} />
