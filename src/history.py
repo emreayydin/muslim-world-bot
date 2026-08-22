@@ -24,6 +24,11 @@ def _load() -> list[dict]:
     return []
 
 
+def count() -> int:
+    """Total number of history entries (used to advance the content rotation)."""
+    return len(_load())
+
+
 def recent_titles(n: int = 40, kind: str = None) -> list[str]:
     """Returns the titles of the last `n` entries (optionally filtered by kind)."""
     items = _load()

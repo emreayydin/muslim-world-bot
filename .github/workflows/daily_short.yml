@@ -2,11 +2,13 @@ name: Daily Islamic Short
 
 on:
   schedule:
-    # Every 2 hours (12 triggers/day). GitHub's free cron drops/delays runs, so
-    # we over-schedule and let main.py self-throttle: it uploads only if the daily
-    # cap isn't reached and enough time passed since the last upload. Result: ~6
-    # shorts/day reliably (5 on long-video days) without exceeding the 10k quota.
-    - cron: "0 */2 * * *"
+    # Hourly ONLY during the audience's active window. Analytics (Aug 2026) show
+    # peak viewer activity 15:00-21:00 GMT+3 (= 12:00-18:00 UTC), ramping from
+    # ~11:00 GMT+3. So we fire 08:00-20:00 UTC (= 11:00-23:00 GMT+3) and let
+    # main.py self-throttle to 6/day with >=2h spacing — every upload lands in the
+    # active window, none in the dead night hours. Over-scheduled (13 triggers) to
+    # survive GitHub's flaky cron.
+    - cron: "0 8-20 * * *"
   workflow_dispatch:
     inputs:
       type:

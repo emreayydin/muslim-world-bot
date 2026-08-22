@@ -51,7 +51,7 @@ LONG_VIDEO_WEEKDAYS = {1, 3, 6}
 # 2h); these caps decide whether a given run actually uploads. YouTube's free
 # quota = 10,000 units/day, videos.insert = 1,600 → 6 uploads/day max.
 DAILY_UPLOAD_CAP = 6          # total videos (shorts + long) per quota day
-MIN_HOURS_BETWEEN = 3.0       # min spacing between uploads so bursts can't happen
+MIN_HOURS_BETWEEN = 2.0       # min spacing so 6 uploads fit the active window (08-20 UTC)
 
 
 def _should_skip_for_quota() -> tuple[bool, str]:
@@ -75,16 +75,21 @@ def _should_skip_for_quota() -> tuple[bool, str]:
     return False, ""
 
 
-def _type_for_now() -> str:
-    """Rotates through all content types using an absolute slot counter.
+# Weighted rotation — analytics (Aug 2026) show Dua is by far the top performer
+# (4 of the top videos are duas), so it airs ~2x as often as the other types.
+WEIGHTED_ROTATION = [
+    "dua", "quran", "hadith", "akhlaq", "prophet_story", "islamic_story",
+    "did_you_know", "dua",
+]
 
-    6 slots/day but 7 types, so a fixed hour->type map would never reach the 7th.
-    Using (ordinal_day * 6 + slot) % len(types) cycles every type evenly over days.
-    """
-    now = datetime.utcnow()
-    slot = now.hour // 4                        # 0..5
-    counter = now.date().toordinal() * 6 + slot
-    return CONTENT_TYPES[counter % len(CONTENT_TYPES)]
+
+def _type_for_now() -> str:
+    """Picks the next content type from the weighted rotation, advancing once per
+    real upload (indexed by total history length) so the cycle stays even
+    regardless of when GitHub's cron actually fires."""
+    import history
+    n = history.count()
+    return WEIGHTED_ROTATION[n % len(WEIGHTED_ROTATION)]
 
 
 def _build_description(item: dict) -> str:
