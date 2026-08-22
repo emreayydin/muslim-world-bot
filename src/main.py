@@ -151,9 +151,11 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     #     Video-Hook animiert (günstigster Qualitäts-Hebel: ~$0.02/Short).
     ai_images = None
     hook_video = None
+    # RENDER_ENGINE=remotion → free animated Remotion visuals; skip paid fal.ai.
+    use_remotion = os.environ.get("RENDER_ENGINE", "").lower() == "remotion"
     IMG_STYLE = ("reverent, cinematic, peaceful, soft divine light, no people, "
                  "no faces, Islamic art aesthetic")
-    if os.environ.get("FAL_KEY") and item.get("image_prompts"):
+    if not use_remotion and os.environ.get("FAL_KEY") and item.get("image_prompts"):
         prompts = item["image_prompts"]
         vis_dir = str(OUTPUT_DIR / f"visuals_{timestamp}")
         try:
@@ -189,8 +191,16 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     log.info("Rendering video...")
     video_path = str(OUTPUT_DIR / f"short_{timestamp}.mp4")
     background = os.environ.get("BACKGROUND_VIDEO_PATH")
-    render_video(item, audio_path, video_path, words=words, background_video=background,
-                 ai_images=ai_images, hook_video=hook_video)
+    if use_remotion:
+        try:
+            from render_remotion import render_remotion
+            render_remotion(item, audio_path, video_path, words)
+        except Exception as e:
+            log.warning(f"Remotion render failed ({e}) — falling back to ffmpeg.")
+            render_video(item, audio_path, video_path, words=words, background_video=background)
+    else:
+        render_video(item, audio_path, video_path, words=words, background_video=background,
+                     ai_images=ai_images, hook_video=hook_video)
     log.info(f"Video: {video_path}")
 
     if dry_run:
