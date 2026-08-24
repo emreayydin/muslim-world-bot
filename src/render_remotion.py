@@ -64,6 +64,58 @@ def render_remotion(item: dict, audio_path: str, output_path: str, words: list) 
     return output_path
 
 
+LONG_TOP, LONG_BOTTOM = [8, 46, 38], [4, 20, 26]   # calm emerald for long videos
+
+
+def render_remotion_long(comp: dict, audio_path: str, output_path: str,
+                         words: list, sections: list) -> str:
+    """Renders a long-form 16:9 video via the animated MuslimLong composition."""
+    if not REMOTION_BIN.exists():
+        raise RuntimeError("Remotion not installed (run `npm ci` in remotion/)")
+
+    facts = comp.get("facts", [])
+    comp_sections = []
+    for s in sections:
+        label = s["label"]
+        if label == "intro":
+            comp_sections.append({"label": "intro", "start": s["start"], "end": s["end"]})
+        elif label == "outro":
+            comp_sections.append({"label": "outro", "start": s["start"], "end": s["end"]})
+        elif label.startswith("point_"):
+            idx = int(label.split("_")[1])
+            f = facts[idx - 1] if 0 < idx <= len(facts) else {}
+            comp_sections.append({
+                "label": "point", "start": s["start"], "end": s["end"], "index": idx,
+                "headline": f.get("headline", ""), "source": f.get("source", ""),
+            })
+
+    total = max(s["end"] for s in sections) + 0.6
+    captions = _group_captions(words or [], total=total) if words else []
+
+    PUBLIC.mkdir(exist_ok=True)
+    shutil.copy(audio_path, PUBLIC / "audio.mp3")
+
+    props = {
+        "title": comp.get("title", ""),
+        "count": len(facts),
+        "sections": comp_sections,
+        "captions": captions,
+        "audio": "audio.mp3",
+        "top": LONG_TOP,
+        "bottom": LONG_BOTTOM,
+    }
+    props_path = REMOTION_DIR / "props_long.json"
+    props_path.write_text(json.dumps(props, ensure_ascii=False))
+
+    out = str(Path(output_path).resolve())
+    cmd = [str(REMOTION_BIN), "render", "MuslimLong", out,
+           f"--props={props_path}", "--log=error"]
+    r = subprocess.run(cmd, cwd=str(REMOTION_DIR), capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"Remotion long render failed:\n{r.stderr[-1800:]}")
+    return output_path
+
+
 if __name__ == "__main__":
     from text_to_speech import generate_audio
     item = {

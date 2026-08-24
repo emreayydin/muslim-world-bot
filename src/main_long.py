@@ -51,9 +51,11 @@ def run(topic: str = None, dry_run: bool = False, privacy: str = "public"):
     dur = max(s["end"] for s in sections)
     log.info(f"Audio: {audio_path} ({dur/60:.1f} min)")
 
+    # RENDER_ENGINE=remotion → free animated 16:9 visuals; skip paid fal.ai
+    use_remotion = os.environ.get("RENDER_ENGINE", "").lower() == "remotion"
     # AI images per section (halal: no people/faces) — falls FAL_KEY; sonst Pexels
     visuals = None
-    if os.environ.get("FAL_KEY"):
+    if not use_remotion and os.environ.get("FAL_KEY"):
         try:
             from generate_visuals import visuals_for_sections
             log.info("Generating AI images (Flux) per section...")
@@ -65,7 +67,15 @@ def run(topic: str = None, dry_run: bool = False, privacy: str = "public"):
 
     log.info("Rendering video (16:9)...")
     video_path = str(OUTPUT_DIR / f"long_{ts}.mp4")
-    render_long(comp, audio_path, sections, video_path, visuals=visuals)
+    if use_remotion:
+        try:
+            from render_remotion import render_remotion_long
+            render_remotion_long(comp, audio_path, video_path, words, sections)
+        except Exception as e:
+            log.warning(f"Remotion long render failed ({e}) — falling back to ffmpeg.")
+            render_long(comp, audio_path, sections, video_path, visuals=visuals)
+    else:
+        render_long(comp, audio_path, sections, video_path, visuals=visuals)
     log.info(f"Video: {video_path}")
 
     thumb_path = str(OUTPUT_DIR / f"long_thumb_{ts}.png")
