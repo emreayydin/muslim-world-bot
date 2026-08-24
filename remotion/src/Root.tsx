@@ -2,6 +2,7 @@ import React from "react";
 import { Composition, CalculateMetadataFunction } from "remotion";
 import { MuslimShort, ShortProps } from "./MuslimShort";
 import { MuslimLong, LongProps } from "./MuslimLong";
+import { MuslimThumb, ThumbProps } from "./MuslimThumb";
 import "./index.css";
 
 const FPS = 30;
@@ -84,6 +85,20 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
         defaultProps={SAMPLE_LONG}
         calculateMetadata={calcLong}
+      />
+      <Composition
+        id="MuslimThumb"
+        component={MuslimThumb}
+        durationInFrames={1}
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={{
+          title: "10 Remarkable Women Who Shaped Islamic History",
+          count: 10,
+          top: [8, 46, 38],
+          bottom: [4, 20, 26],
+        }}
       />
     </>
   );

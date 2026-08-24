@@ -116,6 +116,27 @@ def render_remotion_long(comp: dict, audio_path: str, output_path: str,
     return output_path
 
 
+def render_thumb(comp: dict, output_path: str) -> str:
+    """Renders a 1280x720 YouTube thumbnail via the MuslimThumb composition."""
+    if not REMOTION_BIN.exists():
+        raise RuntimeError("Remotion not installed (run `npm ci` in remotion/)")
+    props = {
+        "title": comp.get("title", ""),
+        "count": len(comp.get("facts", [])),
+        "top": LONG_TOP,
+        "bottom": LONG_BOTTOM,
+    }
+    props_path = REMOTION_DIR / "props_thumb.json"
+    props_path.write_text(json.dumps(props, ensure_ascii=False))
+    out = str(Path(output_path).resolve())
+    cmd = [str(REMOTION_BIN), "still", "MuslimThumb", out,
+           f"--props={props_path}", "--log=error"]
+    r = subprocess.run(cmd, cwd=str(REMOTION_DIR), capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"Remotion thumbnail failed:\n{r.stderr[-1200:]}")
+    return output_path
+
+
 if __name__ == "__main__":
     from text_to_speech import generate_audio
     item = {

@@ -79,7 +79,15 @@ def run(topic: str = None, dry_run: bool = False, privacy: str = "public"):
     log.info(f"Video: {video_path}")
 
     thumb_path = str(OUTPUT_DIR / f"long_thumb_{ts}.png")
-    make_thumbnail(comp, thumb_path)
+    if use_remotion:
+        try:
+            from render_remotion import render_thumb
+            render_thumb(comp, thumb_path)
+        except Exception as e:
+            log.warning(f"Remotion thumbnail failed ({e}) — using Pillow.")
+            make_thumbnail(comp, thumb_path)
+    else:
+        make_thumbnail(comp, thumb_path)
 
     desc = _build_description(comp, sections)
 
