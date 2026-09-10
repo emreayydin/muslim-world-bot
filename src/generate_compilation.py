@@ -1,10 +1,10 @@
-"""Generates a long-form Islamic educational script (16:9 video) via Claude.
+"""Generates a long-form Islamic educational script with an API-free fallback.
 
 List-style, safe, non-sectarian topics (Seerah, Names of Allah, stories of the
 prophets, duas, akhlaq, wisdom from a surah). Every point carries a source.
 """
-import anthropic
 import json
+import os
 import random
 
 
@@ -78,6 +78,11 @@ def generate_compilation(topic: str = None, avoid: list[str] = None,
     prompt = PROMPT_TEMPLATE.format(
         shared=SHARED_RULES, topic=topic, avoid=avoid_block(avoid or []))
 
+    if os.environ.get("ANTHROPIC_ENABLED", "0") != "1" or not os.environ.get("ANTHROPIC_API_KEY"):
+        from local_content import generate_compilation as local_generate_compilation
+        return local_generate_compilation(topic, avoid)
+
+    import anthropic
     client = anthropic.Anthropic()
     last_err = None
     for attempt in range(attempts):
@@ -100,7 +105,9 @@ def generate_compilation(topic: str = None, avoid: list[str] = None,
             last_err = e
             print(f"Invalid response (attempt {attempt + 1}/{attempts}): {e} — retrying...")
 
-    raise RuntimeError(f"Could not produce a valid script after {attempts} attempts: {last_err}")
+    print(f"Anthropic unavailable ({last_err}); using the local source-marked bank")
+    from local_content import generate_compilation as local_generate_compilation
+    return local_generate_compilation(topic, avoid)
 
 
 if __name__ == "__main__":

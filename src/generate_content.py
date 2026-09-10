@@ -1,4 +1,4 @@
-"""Generates authentic Islamic short-video content via the Claude API.
+"""Generates authentic Islamic short-video content with an API-free fallback.
 
 Six content types rotate through the channel (one per daily slot):
   quran         - a Qur'an verse explained
@@ -19,8 +19,8 @@ Non-negotiable rules baked into every prompt (from the channel policy):
     only well-established, universally-accepted content, and it must NEVER
     fabricate a hadith, a reference or a verse number.
 """
-import anthropic
 import json
+import os
 import random
 
 # Rotation order — 7 types cycle across the 6 daily slots (see main.py)
@@ -158,6 +158,11 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
         avoid=avoid_block(avoid or []),
     )
 
+    if os.environ.get("ANTHROPIC_ENABLED", "0") != "1" or not os.environ.get("ANTHROPIC_API_KEY"):
+        from local_content import generate_content as local_generate_content
+        return local_generate_content(content_type, avoid)
+
+    import anthropic
     client = anthropic.Anthropic()
     last_err = None
     for attempt in range(attempts):
@@ -183,7 +188,9 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
             last_err = e
             print(f"Invalid response (attempt {attempt + 1}/{attempts}): {e} — retrying...")
 
-    raise RuntimeError(f"Could not produce valid content after {attempts} attempts: {last_err}")
+    print(f"Anthropic unavailable ({last_err}); using the local source-marked bank")
+    from local_content import generate_content as local_generate_content
+    return local_generate_content(content_type, avoid)
 
 
 if __name__ == "__main__":

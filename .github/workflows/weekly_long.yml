@@ -60,7 +60,6 @@ jobs:
       - name: Generate & Upload Long-form Video
         working-directory: src
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}   # only for the ffmpeg fallback
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           RENDER_ENGINE: "remotion"         # free animated 16:9 visuals (no paid fal.ai)
