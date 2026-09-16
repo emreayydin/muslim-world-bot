@@ -129,7 +129,15 @@ def run(content_type: str = None, dry_run: bool = False, privacy: str = "public"
     # 1. Generate content (avoiding recent titles)
     log.info(f"Generating content (type={content_type})...")
     import history
-    item = generate_content(content_type, avoid=history.recent_titles(40, kind="short"))
+    from local_content import NoFreshContent
+    # Show the model the most recent titles (prompt length), but check
+    # against EVERY title ever posted. Recent ones last: avoid_block keeps the tail.
+    avoid = sorted(history.all_titles()) + history.recent_titles(150)
+    try:
+        item = generate_content(content_type, avoid=avoid)
+    except NoFreshContent as e:
+        log.info(f"Skipping this slot - {e}; no video beats a repeat.")
+        return None
     log.info(f"Title: {item['title']}  |  Source: {item.get('source')}")
 
     (OUTPUT_DIR / f"content_{timestamp}.json").write_text(

@@ -108,16 +108,28 @@ ENTRIES = [
 ]
 
 
+class NoFreshContent(RuntimeError):
+    """Every entry in the local bank has already been posted."""
+
+
 def _fresh(pool, avoid):
     blocked = {str(x).strip().lower() for x in (avoid or [])}
     fresh = [item for item in pool if item["title"].lower() not in blocked]
-    return fresh or pool
+    if not fresh:
+        # Previously "fresh or pool": start over from the top. A repeat costs
+        # more than a skipped slot - YouTube suppresses it and it counts as
+        # repetitive content for the Partner Programme.
+        raise NoFreshContent("local bank is used up")
+    return fresh
 
 
 def generate_content(content_type: str | None = None,
                      avoid: list[str] | None = None) -> dict:
     pool = [item for item in ENTRIES if not content_type or item["content_type"] == content_type]
-    pool = _fresh(pool or ENTRIES, avoid)
+    try:
+        pool = _fresh(pool or ENTRIES, avoid)
+    except NoFreshContent:
+        pool = _fresh(ENTRIES, avoid)     # other types before giving up
     item = deepcopy(pool[len(avoid or []) % len(pool)])
     item.setdefault("arabic", "")
     item.setdefault("transliteration", "")

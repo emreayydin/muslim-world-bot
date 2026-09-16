@@ -166,27 +166,32 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
     client = anthropic.Anthropic()
     last_err = None
     for attempt in range(attempts):
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
         try:
+            message = client.messages.create(
+                model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5"),
+                max_tokens=1500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            # Newer models may return a thinking block before the text.
+            raw = next(b.text for b in message.content
+                       if getattr(b, "type", "") == "text").strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
             data = json.loads(raw.strip())
             if not data.get("body"):
                 raise ValueError("No body text generated")
             if not data.get("source"):
                 raise ValueError("Missing mandatory source citation")
+            if str(data.get("title", "")).strip().lower() in {
+                    str(x).strip().lower() for x in (avoid or [])}:
+                raise ValueError(f"Title already posted: {data.get('title')}")
             data.setdefault("content_type", content_type)
             return data
-        except (json.JSONDecodeError, ValueError) as e:
+        except Exception as e:  # noqa: BLE001 - network, credit, JSON: bank takes over
             last_err = e
-            print(f"Invalid response (attempt {attempt + 1}/{attempts}): {e} — retrying...")
+            print(f"Attempt {attempt + 1}/{attempts} failed: {e}")
 
     print(f"Anthropic unavailable ({last_err}); using the local source-marked bank")
     from local_content import generate_content as local_generate_content

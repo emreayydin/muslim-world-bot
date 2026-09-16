@@ -74,6 +74,10 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}   # only for the ffmpeg fallback
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           RENDER_ENGINE: "remotion"         # free animated visuals (no paid fal.ai)
+          # Without these every short came from the small local bank and
+          # repeated. With empty credit the bank still takes over.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_ENABLED: "1"
           PYTHONUNBUFFERED: "1"
         run: |
           ARGS=()

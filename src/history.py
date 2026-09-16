@@ -37,6 +37,16 @@ def recent_titles(n: int = 40, kind: str = None) -> list[str]:
     return [x["title"] for x in items[-n:] if x.get("title")]
 
 
+def all_titles() -> set[str]:
+    """Every title ever posted, lower-cased.
+
+    recent_titles(40) was not enough: the local bank is small and the channel
+    showed "A Dua for Good in Both Worlds" six times on 2026-09-16. The
+    repeats sat at 1-4 views.
+    """
+    return {x["title"].strip().lower() for x in _load() if x.get("title")}
+
+
 def add_entry(kind: str, title: str, category: str = "") -> None:
     """Appends a posted item (kind = 'short' or 'long'). Keeps the last 500."""
     items = _load()
