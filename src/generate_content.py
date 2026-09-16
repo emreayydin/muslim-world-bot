@@ -162,8 +162,13 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
         from local_content import generate_content as local_generate_content
         return local_generate_content(content_type, avoid)
 
-    import anthropic
-    client = anthropic.Anthropic()
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+    except Exception as e:  # noqa: BLE001 - fehlendes Paket darf keinen Lauf kippen
+        print(f"anthropic nicht nutzbar ({e}) - lokale Bank")
+        from local_content import generate_content as _lokal
+        return _lokal(content_type, avoid)
     last_err = None
     for attempt in range(attempts):
         try:
