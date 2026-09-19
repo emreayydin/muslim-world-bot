@@ -124,7 +124,7 @@ CONTENT TYPE: {content_type}
 Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes (') inside text values, never double quotes. No line breaks inside values:
 {{
   "content_type": "{content_type}",
-  "title": "Clickable but respectful title, max 70 chars (no clickbait, nothing haram)",
+  "title": "Clickable but respectful title, max 70 chars (no clickbait, nothing haram). See TITLES THAT WORK below",
   "hook": "Compelling hook, max 9 words",
   "body": "Spoken script, max 120 words",
   "arabic": "Arabic text if applicable (verse/dua/hadith), else empty string",
@@ -137,10 +137,75 @@ Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes
   "image_prompts": ["halal English AI-image prompt 1", "2", "3", "4"]
 }}
 
+TITLES THAT WORK ON THIS CHANNEL (measured 20.09.2026, channel median 168 views):
+- "The Dua That Asks Allah to Love You Completely"        1,900
+- "The Dua the Prophet Said Every Morning and Evening"    1,400
+- "The Dua That Brings Peace to an Anxious Heart"         1,400
+- "The Muslim Doctor Who Shaped Modern Medicine"          1,300
+- "Say This Dua When Anxiety Grips Your Heart"            1,200
+- "Yusuf Was Betrayed by His Brothers - Then Came This"   1,200
+What they share: the title names a REAL HUMAN SITUATION the viewer is in right
+now (anxious, weak, lonely, in the morning, needing strength) and promises one
+concrete thing - a specific dua, verse or story. Titles mentioning a dua reach
+216 views on average, the rest 149; titles naming a feeling or hardship reach 228.
+
+Titles that failed (1 to 11 views): "Speak Good or Remain Silent",
+"A Dua for Good in Both Worlds", "The Prophet Said This About Smiling at Your
+Brother" - abstract virtue, no situation, nothing concrete promised.
+
+Never invent a dua, verse or hadith to fit a title. If the source does not
+carry the promise, write a plainer title for the same authentic content.
+
 "visual_tags" must be HALAL b-roll search terms only: nature, sky, stars, ocean, mountains, desert, forest, rain, light rays, mosque architecture, Islamic geometric patterns, calligraphy, candle, prayer beads. Never faces of prophets, never anything inappropriate.
 
 "image_prompts" = 4 English AI-image prompts illustrating the content, STRICTLY HALAL: only serene scenes — nature, sky, stars, desert, ocean, mountains, mosque architecture, Islamic geometric patterns, arabesque, soft divine light rays, prayer beads, lanterns, old manuscripts (no readable text). ABSOLUTELY NO people, NO faces, NO figures, NEVER any depiction of God, prophets, the Prophet Muhammad, the companions, or the interior of the Kaaba. No text/words in the image. Style: reverent, cinematic, peaceful."""
 
+
+# Freies JSON aus dem Modell war die haeufigste Fehlerquelle: lange Skripte
+# mit Anfuehrungszeichen und Zeilenumbruechen ergaben unvollstaendiges JSON
+# ("Unterminated string"), drei Fehlversuche, dann die leere lokale Bank - und
+# der Upload-Slot fiel aus. Mit einem Werkzeug-Schema liefert das Modell
+# strukturierte Felder, die nicht mehr geparst werden muessen.
+CONTENT_TOOL = {
+    "name": "short",
+    "description": "One piece of Islamic short-form content.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "content_type": {"type": "string"},
+            "title": {"type": "string"},
+            "hook": {"type": "string"},
+            "body": {"type": "string"},
+            "arabic": {"type": "string"},
+            "transliteration": {"type": "string"},
+            "translation": {"type": "string"},
+            "source": {"type": "string"},
+            "cta": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+            "visual_tags": {"type": "array", "items": {"type": "string"}},
+            "image_prompts": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["title", "hook", "body", "source", "tags",
+                     "visual_tags", "image_prompts"],
+    },
+}
+
+
+def _unwrap(payload):
+    """Manche Antworten kommen in einer zusaetzlichen Huelle wie
+    {"$PARAMETER_NAME": {...}}. Dann fehlt jedes erwartete Feld."""
+    for _ in range(4):
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                return payload
+            continue
+        if isinstance(payload, dict) and "title" not in payload and len(payload) == 1:
+            payload = next(iter(payload.values()))
+            continue
+        break
+    return payload
 
 def generate_content(content_type: str = None, avoid: list[str] = None,
                      attempts: int = 3) -> dict:
@@ -175,16 +240,14 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
             message = client.messages.create(
                 model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5"),
                 max_tokens=1500,
+                tools=[CONTENT_TOOL],
+                tool_choice={"type": "tool", "name": "short"},
                 messages=[{"role": "user", "content": prompt}],
             )
-            # Newer models may return a thinking block before the text.
-            raw = next(b.text for b in message.content
-                       if getattr(b, "type", "") == "text").strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-            data = json.loads(raw.strip())
+            data = next((_unwrap(b.input) for b in message.content
+                         if getattr(b, "type", "") == "tool_use"), None)
+            if not isinstance(data, dict):
+                raise ValueError("no structured answer")
             if not data.get("body"):
                 raise ValueError("No body text generated")
             if not data.get("source"):
@@ -193,8 +256,10 @@ def generate_content(content_type: str = None, avoid: list[str] = None,
                     str(x).strip().lower() for x in (avoid or [])}:
                 raise ValueError(f"Title already posted: {data.get('title')}")
             data.setdefault("content_type", content_type)
+            for feld in ("arabic", "transliteration", "translation", "cta"):
+                data.setdefault(feld, "")
             return data
-        except Exception as e:  # noqa: BLE001 - network, credit, JSON: bank takes over
+        except Exception as e:  # noqa: BLE001 - network, credit, schema: bank takes over
             last_err = e
             print(f"Attempt {attempt + 1}/{attempts} failed: {e}")
 

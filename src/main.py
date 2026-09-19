@@ -78,11 +78,14 @@ def _should_skip_for_quota() -> tuple[bool, str]:
     return False, ""
 
 
-# Weighted rotation — analytics (Aug 2026) show Dua is by far the top performer
-# (4 of the top videos are duas), so it airs ~2x as often as the other types.
+# Weighted rotation. Medians of mature videos, measured 20.09.2026:
+# islamic_story 207, dua 196, quran 193, did_you_know 147, hadith 134,
+# prophet_story 120, akhlaq 104. Every type keeps a slot so the channel stays
+# balanced and the ranking can still change.
 WEIGHTED_ROTATION = [
-    "dua", "quran", "hadith", "akhlaq", "prophet_story", "islamic_story",
-    "did_you_know", "dua",
+    "dua", "islamic_story", "quran", "did_you_know",
+    "dua", "quran", "islamic_story", "hadith",
+    "dua", "did_you_know", "prophet_story", "akhlaq",
 ]
 
 
