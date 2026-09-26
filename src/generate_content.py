@@ -124,7 +124,7 @@ CONTENT TYPE: {content_type}
 Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes (') inside text values, never double quotes. No line breaks inside values:
 {{
   "content_type": "{content_type}",
-  "title": "Clickable but respectful title, max 70 chars (no clickbait, nothing haram). See TITLES THAT WORK below",
+  "title": "Clickable but respectful title, max 70 chars (no clickbait, nothing haram)",
   "hook": "Compelling hook, max 9 words",
   "body": "Spoken script, max 120 words",
   "arabic": "Arabic text if applicable (verse/dua/hadith), else empty string",
@@ -136,25 +136,6 @@ Respond with ONLY a JSON object (no markdown, no explanation). Use single quotes
   "visual_tags": ["halal English stock-video search term", "term2", "term3"],
   "image_prompts": ["halal English AI-image prompt 1", "2", "3", "4"]
 }}
-
-TITLES THAT WORK ON THIS CHANNEL (measured 20.09.2026, channel median 168 views):
-- "The Dua That Asks Allah to Love You Completely"        1,900
-- "The Dua the Prophet Said Every Morning and Evening"    1,400
-- "The Dua That Brings Peace to an Anxious Heart"         1,400
-- "The Muslim Doctor Who Shaped Modern Medicine"          1,300
-- "Say This Dua When Anxiety Grips Your Heart"            1,200
-- "Yusuf Was Betrayed by His Brothers - Then Came This"   1,200
-What they share: the title names a REAL HUMAN SITUATION the viewer is in right
-now (anxious, weak, lonely, in the morning, needing strength) and promises one
-concrete thing - a specific dua, verse or story. Titles mentioning a dua reach
-216 views on average, the rest 149; titles naming a feeling or hardship reach 228.
-
-Titles that failed (1 to 11 views): "Speak Good or Remain Silent",
-"A Dua for Good in Both Worlds", "The Prophet Said This About Smiling at Your
-Brother" - abstract virtue, no situation, nothing concrete promised.
-
-Never invent a dua, verse or hadith to fit a title. If the source does not
-carry the promise, write a plainer title for the same authentic content.
 
 "visual_tags" must be HALAL b-roll search terms only: nature, sky, stars, ocean, mountains, desert, forest, rain, light rays, mosque architecture, Islamic geometric patterns, calligraphy, candle, prayer beads. Never faces of prophets, never anything inappropriate.
 
