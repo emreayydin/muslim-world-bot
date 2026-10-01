@@ -108,6 +108,14 @@ ENTRIES = [
 ]
 
 
+# The large verified bank (since 2026-10-01, extended weekly by the channel
+# agent). Duplicate titles only count once.
+from content_bank import BANK  # noqa: E402
+
+_known = {x["title"].lower() for x in ENTRIES}
+ENTRIES = ENTRIES + [x for x in BANK if x["title"].lower() not in _known]
+
+
 class NoFreshContent(RuntimeError):
     """Every entry in the local bank has already been posted."""
 
