@@ -35,8 +35,8 @@ TYPEN = {"dua": 4, "quran": 3, "akhlaq": 2, "prophet_story": 2}
 QUELLE = re.compile(r"^Qur'an (\d{1,3}):(\d{1,3})(?:-(\d{1,3}))?$")
 
 AUFTRAG = """You write entries for the English YouTube Shorts channel "Muslim World":
-calm, respectful Islamic reminders. Use Google Search to look up the exact
-verse before you write about it.
+calm, respectful Islamic reminders. Only use verses you know precisely - every
+reference is looked up automatically and checked against the real verse text.
 
 Write {anzahl} new entries of type "{typ}". {typ_regel}
 
@@ -151,7 +151,8 @@ def main():
                 {k: e[k] for k in ("title", "hook", "body", "translation", "source")},
                 "This is Islamic content. The translation must faithfully match the real verse "
                 "text given below, and every statement in the body must be supported by that "
-                "verse or by mainstream tafsir. Any invented detail means ok=false.",
+                "verse. General encouragement that follows from the verse is fine; any added "
+                "fact, name, event or number that is not in the verse means ok=false.",
                 zusatz=f"REAL VERSE TEXT (Sahih International):\n{vers}\n")
             if not ok:
                 verworfen += 1
