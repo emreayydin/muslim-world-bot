@@ -112,8 +112,16 @@ ENTRIES = [
 # agent). Duplicate titles only count once.
 from content_bank import BANK  # noqa: E402
 
+try:  # refilled by Gemini on Mondays (scripts/content_bank_nachfuellen.py)
+    from content_bank_neu import NEU as _NEU  # noqa: E402
+except ImportError:
+    _NEU = []
+
 _known = {x["title"].lower() for x in ENTRIES}
-ENTRIES = ENTRIES + [x for x in BANK if x["title"].lower() not in _known]
+for _x in BANK + _NEU:
+    if _x["title"].lower() not in _known:
+        ENTRIES.append(_x)
+        _known.add(_x["title"].lower())
 
 
 class NoFreshContent(RuntimeError):
