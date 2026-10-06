@@ -2,7 +2,7 @@ name: Sammlung nachfuellen (Gemini)
 
 # Seit 06.10.2026: fuellt montags die Sammlung (nur Koran-Inhalte, gegen den Verstext geprueft) mit Gemini auf, damit
 # Emres Mac dafuer nicht laufen muss. Jeder Eintrag wird mit Google-Suche
-# geschrieben und gegengeprueft (scripts/gemini_kern.py). Kostenlos ueber
+# gegengeprueft (scripts/gemini_kern.py). Kostenlos ueber
 # das AI-Studio-Kontingent.
 on:
   schedule:
