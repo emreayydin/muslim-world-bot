@@ -1,6 +1,8 @@
-"""Muslim World: Sammlung montags mit Gemini auffuellen (laeuft auf GitHub).
+"""Muslim World: Sammlung taeglich kostenlos auffuellen (laeuft auf GitHub).
 
-Strenger als bei den anderen Kanaelen: Gemini darf hier NUR Inhalte liefern,
+Schreiben/Pruefen ueber Gratis-Kontingente mit Wechsel (ki_kern.py: Groq,
+Mistral, Gemini). Strenger als bei den anderen Kanaelen: die KI darf hier NUR
+Inhalte liefern,
 die auf Koranversen beruhen (quran, dua, akhlaq, prophet_story). Jede
 angegebene Stelle wird bei api.alquran.cloud nachgeschlagen; gibt es sie
 nicht, fliegt der Eintrag raus. Der echte Verstext geht dann mit in die
@@ -24,11 +26,12 @@ WURZEL = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(WURZEL / "src"))
 sys.path.insert(0, str(WURZEL / "scripts"))
 
-import gemini_kern as g  # noqa: E402
+import ki_kern as g  # noqa: E402
 import local_content  # noqa: E402
 
 NEU_DATEI = WURZEL / "src" / "content_bank_neu.py"
 ZIEL = int(os.environ.get("BANK_ZIEL", "45"))
+PRO_LAUF = int(os.environ.get("PRO_LAUF", "10"))
 PRO_AUFRUF = 5
 MAX_RUNDEN = 12
 TYPEN = {"dua": 4, "quran": 3, "akhlaq": 2, "prophet_story": 2}
@@ -119,7 +122,7 @@ def main():
 
     gepostet = {e["title"].lower() for e in json.loads((WURZEL / "history.json").read_text())}
     frisch = [e for e in local_content.ENTRIES if e["title"].lower() not in gepostet]
-    fehlend = args.anzahl if args.anzahl is not None else max(0, ZIEL - len(frisch))
+    fehlend = args.anzahl if args.anzahl is not None else min(PRO_LAUF, max(0, ZIEL - len(frisch)))
     print(f"Frische Eintraege: {len(frisch)}, Ziel {ZIEL}, fehlen {fehlend}")
     if not fehlend:
         return
@@ -130,7 +133,7 @@ def main():
         NEU = []
     bekannt = gepostet | {e["title"].lower() for e in local_content.ENTRIES}
     quellen = sorted({e.get("source", "") for e in local_content.ENTRIES})
-    schon = sorted(bekannt)[-300:] + [f"verse {q}" for q in quellen]
+    schon = sorted(bekannt)[-150:] + [f"verse {q}" for q in quellen if q.startswith("Qur")]
     neu, verworfen = [], 0
     for runde in range(MAX_RUNDEN):
         if len(neu) >= fehlend:
@@ -167,7 +170,7 @@ def main():
 
     if neu:
         g.schreibe_modul(NEU_DATEI, "NEU", list(NEU) + neu,
-                         "Von Gemini geschriebene, gegen den Korantext gepruefte Eintraege "
+                         "Automatisch geschriebene, gegen den Korantext gepruefte Eintraege "
                          "(scripts/content_bank_nachfuellen.py). Nicht von Hand ordnen.")
     print(f"Ergebnis: {len(neu)} neu, {verworfen} verworfen, "
           f"noch fehlend {max(0, fehlend - len(neu))}")
