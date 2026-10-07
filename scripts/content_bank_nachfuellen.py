@@ -125,6 +125,7 @@ def main():
     fehlend = args.anzahl if args.anzahl is not None else min(PRO_LAUF, max(0, ZIEL - len(frisch)))
     print(f"Frische Eintraege: {len(frisch)}, Ziel {ZIEL}, fehlen {fehlend}")
     if not fehlend:
+        g.bericht("Muslim World", len(frisch), 0, 0, 12, 6)
         return
 
     try:
@@ -174,6 +175,7 @@ def main():
                          "(scripts/content_bank_nachfuellen.py). Nicht von Hand ordnen.")
     print(f"Ergebnis: {len(neu)} neu, {verworfen} verworfen, "
           f"noch fehlend {max(0, fehlend - len(neu))}")
+    g.bericht("Muslim World", len(frisch), len(neu), fehlend, 12, 6)
 
 
 if __name__ == "__main__":
