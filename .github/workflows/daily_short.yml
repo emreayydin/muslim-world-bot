@@ -37,6 +37,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Scheduled events can wait behind an earlier run while keeping its
+          # old event SHA. Load current history before generating the next clip.
+          ref: main
 
       - name: Install system dependencies
         run: |

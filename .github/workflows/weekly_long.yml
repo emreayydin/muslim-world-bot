@@ -33,6 +33,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Shorts and long videos share history.json; queued runs must start
+          # from the latest main revision, not their stale schedule-event SHA.
+          ref: main
 
       - name: Install system dependencies
         run: |
