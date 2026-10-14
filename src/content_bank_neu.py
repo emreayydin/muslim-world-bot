@@ -124,4 +124,27 @@ NEU = [{'content_type': 'akhlaq',
   'translation': 'Our Lord, forgive us our sins and the excess in our affairs, plant firmly our '
                  'feet, and give us victory over the disbelieving people.',
   'source': "Qur'an 3:147",
-  'tags': ['dua', 'quran', 'patience', 'prayer']}]
+  'tags': ['dua', 'quran', 'patience', 'prayer']},
+ {'content_type': 'dua',
+  'title': 'The Dua for Seeking Safety and Peace',
+  'hook': 'When you enter a new place, say this prayer.',
+  'body': 'Starting fresh can make your heart feel uncertain. Whether you are stepping into a new '
+          "home, beginning a new journey, or facing an unknown path, the Qur'an teaches this "
+          'beautiful supplication. It asks your Lord to grant you a blessed arrival and a secure '
+          'landing. When change feels overwhelming, turn to the One who guides every step and '
+          'provides the best settling place for your soul.',
+  'translation': 'And say: My Lord, grant me a blessed landing, for You are the best to settle us.',
+  'source': "Qur'an 23:29",
+  'tags': ['dua', 'peace', 'guidance', 'quran']},
+ {'content_type': 'dua',
+  'title': 'The Dua for When You Feel Weak in Faith',
+  'hook': 'Ask Allah to perfect your light with this dua.',
+  'body': 'We all experience moments where our faith feels fragile and our flaws feel heavy. In '
+          "the Qur'an, the believers ask their Lord to complete their light for them and to "
+          'overlook their shortfalls. This is a prayer of hope for the final destination. Recite '
+          'this dua to seek steadfastness, asking Allah to pardon your errors and illuminate your '
+          'journey all the way to His mercy.',
+  'translation': 'Our Lord, perfect for us our light and forgive us; indeed, You are over all '
+                 'things competent.',
+  'source': "Qur'an 66:8",
+  'tags': ['dua', 'light', 'forgiveness', 'quran']}]
