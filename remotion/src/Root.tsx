@@ -2,7 +2,7 @@ import React from "react";
 import { Composition, CalculateMetadataFunction } from "remotion";
 import { MuslimShort, ShortProps } from "./MuslimShort";
 import { MuslimLong, LongProps } from "./MuslimLong";
-import { MuslimThumb, ThumbProps } from "./MuslimThumb";
+import { MuslimThumb } from "./MuslimThumb";
 import "./index.css";
 
 const FPS = 30;
@@ -31,7 +31,7 @@ const calc: CalculateMetadataFunction<ShortProps> = ({ props }) => {
     ? Math.max(...props.captions.map((c) => c.end))
     : 14;
   return {
-    durationInFrames: Math.ceil((end + 1.2) * FPS),
+    durationInFrames: Math.ceil((props.durationSeconds ?? (end + 0.8)) * FPS),
     fps: FPS,
     width: 1080,
     height: 1920,

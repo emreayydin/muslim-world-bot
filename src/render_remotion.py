@@ -48,6 +48,10 @@ def render_remotion(item: dict, audio_path: str, output_path: str, words: list) 
         "source": item.get("source", ""),
         "arabic": item.get("arabic", "") or "",
         "captions": captions,
+        # Preserve the real WordBoundary timestamps. Estimating each word as
+        # an equal fraction of its phrase makes long and short words drift.
+        "words": words or [],
+        "durationSeconds": total,
         "audio": "audio.mp3",
         "top": top,
         "bottom": bottom,

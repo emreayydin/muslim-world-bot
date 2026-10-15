@@ -32,7 +32,7 @@ const GeoStar: React.FC = () => (
 );
 
 export const MuslimThumb: React.FC<ThumbProps> = ({ title, count, top, bottom }) => {
-  const { width, height } = useVideoConfig();
+  const { width } = useVideoConfig();
   return (
     <AbsoluteFill style={{ backgroundColor: rgb(bottom) }}>
       <AbsoluteFill style={{ background: `linear-gradient(145deg, ${rgb(top)} 0%, ${rgb(bottom)} 70%)` }} />

@@ -10,3 +10,5 @@ output/*.png
 output/*.json
 src/output/
 .DS_Store
+tokens/
+authorize_analytics.py

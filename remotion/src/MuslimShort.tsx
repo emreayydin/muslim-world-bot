@@ -11,12 +11,15 @@ import {
 
 // ---------- types ----------
 export type Caption = { text: string; start: number; end: number };
+export type TimedWord = { text: string; start: number; end: number };
 export type ShortProps = {
   badge: string;
   title: string;
   source: string;
   arabic?: string;
   captions: Caption[];
+  words?: TimedWord[];
+  durationSeconds?: number;
   audio?: string; // filename in public/
   top: [number, number, number];
   bottom: [number, number, number];
@@ -174,6 +177,10 @@ const Badge: React.FC<{ text: string }> = ({ text }) => {
 
 const Title: React.FC<{ text: string }> = ({ text }) => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const compact = interpolate(frame / fps, [3.5, 4.1], [0, 1], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+  });
   const o = interpolate(frame, [6, 24], [0, 1], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
   const y = interpolate(frame, [6, 24], [20, 0], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
   return (
@@ -183,7 +190,7 @@ const Title: React.FC<{ text: string }> = ({ text }) => {
         color: "#fff",
         fontFamily: FONT,
         fontWeight: 800,
-        fontSize: 60,
+        fontSize: interpolate(compact, [0, 1], [68, 46]),
         lineHeight: 1.15,
         maxWidth: 900,
         margin: "0 auto",
@@ -197,29 +204,35 @@ const Title: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const Caption: React.FC<{ captions: Caption[] }> = ({ captions }) => {
+const Caption: React.FC<{ captions: Caption[]; words?: TimedWord[] }> = ({ captions, words: timings }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = frame / fps;
   const cur = captions.find((c) => t >= c.start && t < c.end);
   if (!cur) return null;
-  const words = cur.text.toUpperCase().split(" ");
-  const prog = (t - cur.start) / Math.max(0.3, cur.end - cur.start);
-  const active = Math.floor(prog * words.length);
+  const words = cur.text.split(" ");
+  const exact = (timings ?? []).filter((w) => w.start >= cur.start - 0.001 && w.start < cur.end - 0.001);
+  // Older props without word timings remain readable, with no pretend karaoke.
+  const active = exact.length
+    ? exact.reduce((last, word, index) => t >= word.start ? index : last, -1)
+    : -1;
   const local = (frame - cur.start * fps);
-  const s = interpolate(local, [0, 8], [0.85, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-  const o = interpolate(local, [0, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const y = interpolate(local, [0, 6], [9, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const longest = Math.max(...words.map((word) => word.length), 1);
+  const size = Math.min(90, Math.max(52, 1240 / longest));
   return (
     <div
       style={{
         display: "flex",
         flexWrap: "wrap",
         justifyContent: "center",
-        gap: "0 22px",
-        maxWidth: 940,
+        gap: "8px 22px",
+        width: 850,
         margin: "0 auto",
-        opacity: o,
-        scale: String(s),
+        padding: "32px 30px",
+        borderRadius: 24,
+        backgroundColor: "rgba(3, 12, 19, 0.70)",
+        translate: `0px ${y}px`,
       }}
     >
       {words.map((w, i) => (
@@ -228,9 +241,11 @@ const Caption: React.FC<{ captions: Caption[] }> = ({ captions }) => {
           style={{
             fontFamily: FONT,
             fontWeight: 900,
-            fontSize: 92,
+            fontSize: size,
             lineHeight: 1.1,
             color: i === active ? GOLD : "#fff",
+            borderBottom: `4px solid ${i === active ? GOLD : "transparent"}`,
+            paddingBottom: 10,
             textShadow: "0 4px 16px rgba(0,0,0,0.85)",
           }}
         >
@@ -251,7 +266,7 @@ const Arabic: React.FC<{ text: string }> = ({ text }) => {
         textAlign: "center",
         color: "#fff",
         fontFamily: "'Amiri','Geeza Pro','Scheherazade New',serif",
-        fontSize: 74,
+        fontSize: text.length > 140 ? 48 : text.length > 85 ? 60 : 74,
         lineHeight: 1.7,
         direction: "rtl",
         maxWidth: 940,
@@ -267,32 +282,34 @@ const Arabic: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const Source: React.FC<{ text: string }> = ({ text }) => {
-  const frame = useCurrentFrame();
-  const o = interpolate(frame, [10, 26], [0, 1], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
   return (
     <div
       style={{
         position: "absolute",
-        bottom: 130,
-        left: 0,
-        right: 0,
+        bottom: 310,
+        left: 90,
+        right: 130,
         textAlign: "center",
         color: GOLD,
         fontFamily: FONT,
         fontWeight: 700,
-        fontSize: 46,
+        fontSize: text.length > 75 ? 32 : 40,
+        lineHeight: 1.3,
+        overflowWrap: "anywhere",
         textShadow: "0 2px 10px rgba(0,0,0,0.8)",
-        opacity: o,
       }}
     >
-      — {text}
+      <div style={{ fontSize: 26, letterSpacing: 3, marginBottom: 14, opacity: 0.7 }}>SOURCE · PARAPHRASED MEANING</div>
+      {text}
     </div>
   );
 };
 
 // ---------- main ----------
 export const MuslimShort: React.FC<ShortProps> = (props) => {
-  const { badge, title, source, arabic, captions, audio, top, bottom } = props;
+  const { badge, title, source, arabic, captions, words, audio, top, bottom } = props;
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   return (
     <AbsoluteFill style={{ backgroundColor: rgb(bottom) }}>
       <Sky top={rgb(top)} bottom={rgb(bottom)} />
@@ -331,11 +348,17 @@ export const MuslimShort: React.FC<ShortProps> = (props) => {
           justifyContent: "center",
           paddingLeft: 70,
           paddingRight: 70,
-          translate: "0px 300px",
+          translate: arabic ? "0px 260px" : "0px 100px",
         }}
       >
-        <Caption captions={captions} />
+        <Caption captions={captions} words={words} />
       </AbsoluteFill>
+
+      <div style={{ position: "absolute", bottom: 440, left: 100, width: 840, height: 3,
+        backgroundColor: "rgba(212,175,55,0.15)" }}>
+        <div style={{ width: `${Math.min(100, (frame / Math.max(1, durationInFrames - 1)) * 100)}%`,
+          height: 3, backgroundColor: GOLD }} />
+      </div>
 
       <Source text={source} />
 

@@ -37,13 +37,14 @@ conservative:
 - Halal visuals only (nature, sky, mosques, calligraphy, patterns) — never faces
   of prophets.
 
-⚠️ LLMs can still occasionally misattribute a hadith. Spot-checking the first
-days of output is strongly recommended before leaving it fully unattended.
+Die Standardausgabe kommt aus einer lokalen, quellenmarkierten Faktenbank.
+Dadurch ist kein Anthropic-Schlüssel erforderlich. Wenn später bewusst ein
+LLM aktiviert wird, sollten die ersten Ausgaben trotzdem gegengeprüft werden.
 
 ## Architecture
 
 ```
-Claude API      → generate content JSON (with mandatory source)
+Lokale Quellenbank → generate content JSON (with mandatory source)
 edge-tts        → English neural voice + word timing for captions
 Pexels + ffmpeg → halal montage (fast cuts + Ken-Burns) + Pillow captions/source
 YouTube API     → upload (Short or long-form)
@@ -60,9 +61,9 @@ pip install -r requirements.txt
 ```
 
 ### 2. Keys
-- **Anthropic:** https://console.anthropic.com → API key
 - **Pexels (free):** https://www.pexels.com/api/ → API key
-- Copy `.env.example` → `.env` and fill both in.
+- Copy `.env.example` → `.env` and add Pexels only if you want stock visuals.
+- **No Anthropic key is required.** Content generation uses the local source bank.
 
 ### 3. YouTube API (one-time, needs your login)
 1. [Google Cloud Console](https://console.cloud.google.com) → new project
@@ -81,7 +82,6 @@ pip install -r requirements.txt
 
 | Secret | Value |
 |---|---|
-| `ANTHROPIC_API_KEY` | your Anthropic key |
 | `PEXELS_API_KEY` | your Pexels key |
 | `YOUTUBE_TOKEN_JSON` | contents of `youtube_token.json` |
 
@@ -101,8 +101,8 @@ python main_long.py --topic "The Beautiful Names of Allah (Asma ul Husna)" --dry
 ```
 
 ## Cost
-Claude ~$0.01/short, ~$0.03/long. edge-tts, ffmpeg, Pexels, GitHub Actions free.
-≈ **$2–3/month** for ~180 shorts + ~12 long videos.
+Die lokale Quellenbank, edge-tts, ffmpeg und GitHub Actions sind kostenlos.
+Pexels ist optional; YouTube benötigt weiterhin OAuth, aber keinen Anthropic-Schlüssel.
 
 ## Maintenance
 YouTube OAuth token expires ~6 months → re-run `python upload_youtube.py`, update
