@@ -53,8 +53,8 @@ LONG_VIDEO_WEEKDAYS = set()
 # unreliably. The shorts workflow is scheduled far more often than needed (every
 # 2h); these caps decide whether a given run actually uploads. YouTube's free
 # quota = 10,000 units/day, videos.insert = 1,600 → 6 uploads/day max.
-DAILY_UPLOAD_CAP = 6          # total videos (shorts + long) per quota day
-MIN_HOURS_BETWEEN = 2.0       # min spacing so 6 uploads fit the active window (08-20 UTC)
+DAILY_UPLOAD_CAP = int(os.environ.get("DAILY_UPLOAD_CAP", "4"))  # 4/Tag seit 16.10.2026 (Emre)
+MIN_HOURS_BETWEEN = float(os.environ.get("MIN_HOURS_BETWEEN", "3.0"))  # 4 Uploads im Fenster 08-20 UTC
 
 
 def _should_skip_for_quota() -> tuple[bool, str]:
