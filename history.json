@@ -2540,5 +2540,12 @@
     "kind": "short",
     "category": "did_you_know",
     "title": "The Doctor Who First Told Smallpox and Measles Apart"
+  },
+  {
+    "date": "2026-10-16 11:30",
+    "ts_utc": "2026-10-16T11:30:13.749558+00:00",
+    "kind": "short",
+    "category": "prophet_story",
+    "title": "Nuh Watched His Own Son Refuse the Ark"
   }
 ]
