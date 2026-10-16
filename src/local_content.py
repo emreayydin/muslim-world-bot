@@ -111,6 +111,7 @@ ENTRIES = [
 # The large verified bank (since 2026-10-01, extended weekly by the channel
 # agent). Duplicate titles only count once.
 from content_bank import BANK  # noqa: E402
+from content_bank_monat import MONAT  # noqa: E402  (monthly stock from 2026-10-16)
 
 try:  # refilled by Gemini on Mondays (scripts/content_bank_nachfuellen.py)
     from content_bank_neu import NEU as _NEU  # noqa: E402
@@ -118,7 +119,7 @@ except ImportError:
     _NEU = []
 
 _known = {x["title"].lower() for x in ENTRIES}
-for _x in BANK + _NEU:
+for _x in BANK + MONAT + _NEU:
     if _x["title"].lower() not in _known:
         ENTRIES.append(_x)
         _known.add(_x["title"].lower())
