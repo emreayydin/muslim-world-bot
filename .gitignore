@@ -12,3 +12,6 @@ src/output/
 .DS_Store
 tokens/
 authorize_analytics.py
+remotion/public/story/
+remotion/props_story.json
+logs/

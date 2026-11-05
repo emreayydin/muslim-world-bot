@@ -1,0 +1,31 @@
+#!/bin/zsh
+# Local autopilot for the animated story Shorts (launchd: de.muslimworld.story).
+# Fires hourly; story_short.py itself decides whether this slot uploads
+# (max 4/day, >= 3h apart). caffeinate keeps the Mac awake while it works.
+set -u
+REPO="/Users/emre.cya/Projects/muslim-world-bot"
+LOCK="/tmp/muslimworld-story.lock"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin"
+cd "$REPO" || exit 1
+mkdir -p logs
+
+# one run at a time
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "$(date) already running - skip"; exit 0
+fi
+trap 'rmdir "$LOCK"' EXIT
+
+echo "=== $(date) ==="
+git pull --rebase --autostash -q origin main || echo "git pull failed (offline?) - continuing"
+
+cd src
+caffeinate -i -s ../venv/bin/python story_short.py
+rc=$?
+cd "$REPO"
+
+if ! git diff --quiet -- history.json; then
+  git add history.json
+  git commit -q -m "Update history (story short) [skip ci]"
+  git push -q origin HEAD:main || echo "git push failed - will retry next run"
+fi
+exit $rc

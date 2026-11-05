@@ -3,6 +3,7 @@ import { Composition, CalculateMetadataFunction } from "remotion";
 import { MuslimShort, ShortProps } from "./MuslimShort";
 import { MuslimLong, LongProps } from "./MuslimLong";
 import { MuslimThumb } from "./MuslimThumb";
+import { MuslimStory, StoryProps } from "./MuslimStory";
 import "./index.css";
 
 const FPS = 30;
@@ -63,9 +64,24 @@ const calcLong: CalculateMetadataFunction<LongProps> = ({ props }) => {
   return { durationInFrames: Math.ceil((end + 0.8) * FPS), fps: FPS, width: 1920, height: 1080 };
 };
 
+const calcStory: CalculateMetadataFunction<StoryProps> = ({ props }) => ({
+  durationInFrames: Math.ceil(props.durationSeconds * FPS), fps: FPS, width: 1080, height: 1920,
+});
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="MuslimStory"
+        component={MuslimStory}
+        durationInFrames={300}
+        fps={FPS}
+        width={1080}
+        height={1920}
+        defaultProps={{ audio: "story/audio.mp3", images: [], scenes: [], words: [], durationSeconds: 10,
+          ending: { arabic: "", word: "", reminder: "", source: "" } }}
+        calculateMetadata={calcStory}
+      />
       <Composition
         id="MuslimShort"
         component={MuslimShort}
