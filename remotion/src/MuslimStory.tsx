@@ -3,6 +3,8 @@ import {
   AbsoluteFill,
   Audio,
   Img,
+  OffthreadVideo,
+  Sequence,
   interpolate,
   spring,
   staticFile,
@@ -15,6 +17,7 @@ export type StoryWord = { text: string; start: number; end: number; speaker?: st
 export type StoryProps = {
   audio: string;
   images: string[];
+  videos?: ({ src: string; start: number } | null)[];
   scenes: { start: number; end: number }[];
   words: StoryWord[];
   durationSeconds: number;
@@ -27,9 +30,8 @@ const FONT = "'Montserrat', 'Arial Black', Arial, Helvetica, sans-serif";
 const FADE = 0.35; // crossfade seconds
 
 // ---------- one picture with Ken-Burns motion ----------
-const Shot: React.FC<{ src: string; start: number; end: number; idx: number }> = ({
-  src, start, end, idx,
-}) => {
+const Shot: React.FC<{ src: string; start: number; end: number; idx: number;
+  video?: { src: string; start: number } | null }> = ({ src, start, end, idx, video }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = frame / fps;
@@ -46,13 +48,26 @@ const Shot: React.FC<{ src: string; start: number; end: number; idx: number }> =
   });
   return (
     <AbsoluteFill style={{ opacity }}>
-      <Img
-        src={staticFile(src)}
-        style={{
-          width: "100%", height: "100%", objectFit: "cover",
-          transform: `scale(${scale}) translate(${dx}px, ${dy}px)`,
-        }}
-      />
+      {video ? (
+        <Sequence from={Math.round(video.start * fps)} layout="none">
+          <OffthreadVideo
+            src={staticFile(video.src)}
+            muted
+            style={{
+              width: "100%", height: "100%", objectFit: "cover",
+              transform: `scale(${scale}) translate(${dx}px, ${dy}px)`,
+            }}
+          />
+        </Sequence>
+      ) : (
+        <Img
+          src={staticFile(src)}
+          style={{
+            width: "100%", height: "100%", objectFit: "cover",
+            transform: `scale(${scale}) translate(${dx}px, ${dy}px)`,
+          }}
+        />
+      )}
     </AbsoluteFill>
   );
 };
@@ -166,7 +181,7 @@ export const MuslimStory: React.FC<StoryProps> = (p) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {p.images.map((src, i) => (
-        <Shot key={i} src={src} idx={i} start={p.scenes[i].start}
+        <Shot key={i} src={src} idx={i} video={p.videos?.[i]} start={p.scenes[i].start}
           end={i === n - 1 ? endStart : p.scenes[i].end} />
       ))}
       {/* soft vignette so captions always read */}

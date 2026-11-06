@@ -2,7 +2,8 @@
 
 Format (since 05.11.2026, modelled on viral "deen tales" Shorts):
   3D-animation stills (Z-Image-Turbo, LOCAL on the Mac, free) with Ken-Burns
-  motion, a narrator plus distinct character voices (edge-tts, free), bold
+  motion; the characters TALK themselves (own edge-tts voice + local Wav2Lip
+  lip-sync on every speaking scene, since 05.11. evening), bold
   word-by-word captions, and a closing card with one verified reminder.
 
 Runs on the Mac (launchd), not on GitHub - the image model needs Apple Silicon.
@@ -90,10 +91,22 @@ def _dur(path: str) -> float:
         return 0.0
 
 
-def build_audio(story: dict, out_mp3: str) -> tuple[list[dict], list[dict], float]:
+def scene_speaker(sc: dict) -> str | None:
+    """The character whose mouth moves in this scene (first non-narrator line)."""
+    if sc.get("speaker"):
+        return sc["speaker"]
+    return next((spk for spk, _ in sc.get("lines", []) if spk != "narrator"), None)
+
+
+def build_audio(story: dict, out_mp3: str, work: Path | None = None
+                ) -> tuple[list[dict], list[dict], float]:
     """Synthesises every line with its speaker's voice. Returns (words, scenes, total).
-    words carry the speaker; scenes = [{start, end}] aligned with story['scenes'] + ending."""
-    work = Path(tempfile.mkdtemp(prefix="story_tts_"))
+    words carry the speaker; scenes = [{start, end, lines:[{speaker, wav, start}]}]
+    aligned with story['scenes'] + ending. The per-line wavs stay in `work` for lip-sync."""
+    work = Path(work or tempfile.mkdtemp(prefix="story_tts_"))
+    if work.exists():
+        shutil.rmtree(work)
+    work.mkdir(parents=True)
     chars = story["characters"]
     silence = str(work / "sil.wav")
     pieces, words, scenes = [], [], []
@@ -111,6 +124,7 @@ def build_audio(story: dict, out_mp3: str) -> tuple[list[dict], list[dict], floa
     all_scenes = story["scenes"] + [{"lines": [["narrator", ending["reminder"]]], "ending": True}]
     for si, sc in enumerate(all_scenes):
         start = t
+        placed = []
         for li, (spk, text) in enumerate(sc["lines"]):
             role = "narrator" if spk == "narrator" else chars.get(spk, {}).get("voice", "narrator")
             voice, rate, pitch = VOICES.get(role, VOICES["narrator"])
@@ -125,11 +139,12 @@ def build_audio(story: dict, out_mp3: str) -> tuple[list[dict], list[dict], floa
                 words.append({"text": w["text"], "start": w["start"] + t, "end": w["end"] + t,
                               "speaker": spk})
             pieces.append(p)
+            placed.append({"speaker": spk, "wav": p, "start": t})
             t += d
             add_silence(GAP_LINE)
         if si < len(all_scenes) - 1:
             add_silence(GAP_SCENE)
-        scenes.append({"start": start, "end": t})
+        scenes.append({"start": start, "end": t, "lines": placed})
     add_silence(1.2)  # let the ending card breathe
     scenes[-1]["end"] = t
     for i in range(len(scenes) - 1):  # no gaps between pictures
@@ -149,17 +164,20 @@ def build_audio(story: dict, out_mp3: str) -> tuple[list[dict], list[dict], floa
         "[1:a]lowpass=f=520,volume=0.07[bg];[0:a]loudnorm=I=-15:TP=-1.5[v];"
         "[v][bg]amix=inputs=2:duration=first:normalize=0[a]",
         "-map", "[a]", "-c:a", "libmp3lame", "-b:a", "192k", out_mp3], check=True)
-    shutil.rmtree(work, ignore_errors=True)
     return words, scenes, t
 
 
 # ---------------------------------------------------------------- images
-def scene_prompt(story: dict, shot: str) -> str:
+def scene_prompt(story: dict, shot: str, speaker: str | None = None) -> str:
     low = shot.lower()
     looks = [c["look"] for k, c in story["characters"].items()
-             if f"{k} " in f"{low} " or f"{k}'" in low]
+             if f"{k} " in f"{low} " or f"{k}'" in low or k == speaker]
     cast = (" Characters: " + "; ".join(looks) + ".") if looks else ""
-    return f"{STYLE}. Setting: {story.get('setting', '')}. Scene: {shot}.{cast} {NEGATIVE_HINT}."
+    talk = ""
+    if speaker and speaker in story["characters"]:
+        talk = (f" {speaker} is talking, mouth slightly open, face fully visible and turned towards "
+                f"the camera, {speaker}'s face is the biggest and closest face in the picture.")
+    return f"{STYLE}. Setting: {story.get('setting', '')}. Scene: {shot}.{talk}{cast} {NEGATIVE_HINT}."
 
 
 def build_images(story: dict, out_dir: Path) -> list[str]:
@@ -168,23 +186,93 @@ def build_images(story: dict, out_dir: Path) -> list[str]:
     jobs, paths = [], []
     for i, sc in enumerate(story["scenes"]):
         p = out_dir / f"img_{i:02d}.png"
-        jobs.append({"prompt": scene_prompt(story, sc["shot"]), "out": str(p), "seed": seed0 + i})
+        jobs.append({"prompt": scene_prompt(story, sc["shot"], scene_speaker(sc)), "out": str(p),
+                     "seed": seed0 + i})
         paths.append(str(p))
     spec = out_dir / "jobs.json"
     spec.write_text(json.dumps({"width": 768, "height": 1344, "steps": 9, "jobs": jobs}, indent=1))
-    if not all(Path(p).exists() for p in paths):
-        r = subprocess.run([str(MFLUX_PY), str(IMG_SCRIPT), str(spec)])
+    # one image per process, one after another (a single batch once froze the Mac)
+    for i, p in enumerate(paths):
+        if Path(p).exists():
+            continue
+        r = subprocess.run([str(MFLUX_PY), str(IMG_SCRIPT), str(spec), str(i)])
         if r.returncode != 0:
-            raise RuntimeError("image generation failed")
+            raise RuntimeError(f"image {i} failed")
+        log.info(f"image {i + 1}/{len(paths)} done")
     missing = [p for p in paths if not Path(p).exists()]
     if missing:
         raise RuntimeError(f"{len(missing)} images missing")
     return paths
 
 
+# ---------------------------------------------------------------- lip-sync
+LIP_PY = Path.home() / ".local/share/wav2lip/venv/bin/python"
+LIP_SCRIPT = ROOT / "scripts" / "lipsync.py"
+FADE = 0.35   # must match FADE in remotion/src/MuslimStory.tsx
+FPS = 30
+
+
+def _read_wav(path: str):
+    import array
+    import wave
+    with wave.open(path) as w:
+        a = array.array("h")
+        a.frombytes(w.readframes(w.getnframes()))
+        return a, w.getframerate()
+
+
+def build_talking(story: dict, scenes: list, images: list[str], out_dir: Path) -> list:
+    """One lip-synced clip per scene with a speaking character (None = still image).
+    Each clip starts at max(0, scene.start - FADE) and covers the whole visible span;
+    its audio contains ONLY that speaker's lines, so the mouth rests otherwise."""
+    import array
+    import wave
+    if not LIP_PY.exists():
+        log.warning("Wav2Lip not installed - stills only")
+        return [None] * len(images)
+    if out_dir.exists():  # clips belong to THIS audio take - never reuse old ones
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True)
+    jobs, clips = [], []
+    n = len(images)
+    for i, sc in enumerate(story["scenes"]):
+        spk = scene_speaker(sc)
+        if not spk or spk not in story["characters"]:
+            clips.append(None)
+            continue
+        t0 = max(0.0, scenes[i]["start"] - FADE)
+        t1 = (scenes[n]["start"] if i == n - 1 else scenes[i]["end"]) + FADE + 0.3
+        sr = 24000
+        track = array.array("h", bytes(2 * (int((t1 - t0) * sr) + 1)))
+        for ln in scenes[i]["lines"]:
+            if ln["speaker"] != spk:
+                continue
+            a, _ = _read_wav(ln["wav"])
+            o = int((ln["start"] - t0) * sr)
+            a = a[: max(0, len(track) - o)]
+            track[o:o + len(a)] = a  # same length slice -> in-place overwrite
+        wav = out_dir / f"lip_{i:02d}.wav"
+        with wave.open(str(wav), "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+            w.writeframes(track.tobytes())
+        out = out_dir / f"talk_{i:02d}.mp4"
+        jobs.append({"image": images[i], "audio": str(wav), "out": str(out), "speaker": spk})
+        clips.append({"path": str(out), "start": t0})
+    if not jobs:
+        return clips
+    spec = out_dir / "lip_jobs.json"
+    res = out_dir / "lip_result.json"
+    spec.write_text(json.dumps({"fps": FPS, "jobs": jobs, "result": str(res)}, indent=1))
+    r = subprocess.run([str(LIP_PY), str(LIP_SCRIPT), str(spec)])
+    ok = json.loads(res.read_text()) if res.exists() and r.returncode == 0 else {}
+    clips = [c if c and ok.get(c["path"]) and Path(c["path"]).exists() else None for c in clips]
+    log.info(f"Lip-sync: {sum(1 for c in clips if c)}/{len(jobs)} speaking scenes animated")
+    return clips
+
+
 # ---------------------------------------------------------------- render
 def render(story: dict, audio: str, images: list[str], words: list, scenes: list,
-           total: float, out_mp4: str) -> str:
+           total: float, out_mp4: str, clips: list | None = None) -> str:
     pub = REMOTION_DIR / "public" / "story"
     if pub.exists():
         shutil.rmtree(pub)
@@ -195,10 +283,19 @@ def render(story: dict, audio: str, images: list[str], words: list, scenes: list
         n = f"img_{i:02d}.png"
         shutil.copy(p, pub / n)
         names.append(f"story/{n}")
+    videos = []
+    for i, c in enumerate(clips or [None] * len(images)):
+        if c:
+            n = f"talk_{i:02d}.mp4"
+            shutil.copy(c["path"], pub / n)
+            videos.append({"src": f"story/{n}", "start": c["start"]})
+        else:
+            videos.append(None)
     props = {
         "audio": "story/audio.mp3",
         "images": names,
-        "scenes": scenes,
+        "videos": videos,
+        "scenes": [{"start": x["start"], "end": x["end"]} for x in scenes],
         "words": words,
         "durationSeconds": total,
         "ending": story["ending"],
@@ -207,7 +304,7 @@ def render(story: dict, audio: str, images: list[str], words: list, scenes: list
     pp = REMOTION_DIR / "props_story.json"
     pp.write_text(json.dumps(props, ensure_ascii=False))
     r = subprocess.run([str(REMOTION_BIN), "render", "MuslimStory", str(Path(out_mp4).resolve()),
-                        f"--props={pp}", "--log=error", "--concurrency=6"],
+                        f"--props={pp}", "--log=error", "--concurrency=3"],
                        cwd=str(REMOTION_DIR), capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"Remotion story render failed:\n{r.stderr[-2000:]}")
@@ -254,15 +351,18 @@ def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "publ
 
     log.info("Voices...")
     audio = str(work / "audio.mp3")
-    words, scenes, total = build_audio(story, audio)
+    words, scenes, total = build_audio(story, audio, work / "lines")
     log.info(f"Audio {total:.1f}s, {len(words)} words, {len(scenes)} scenes")
 
     log.info("Images (local Z-Image-Turbo)...")
     images = build_images(story, work / "images")
 
+    log.info("Lip-sync (local Wav2Lip)...")
+    clips = build_talking(story, scenes, images, work / "talk")
+
     log.info("Rendering...")
     out = str(OUTPUT_DIR / f"story_{ts}.mp4")
-    render(story, audio, images, words, scenes, total, out)
+    render(story, audio, images, words, scenes, total, out, clips)
     log.info(f"Video: {out}")
     if dry_run:
         return out
