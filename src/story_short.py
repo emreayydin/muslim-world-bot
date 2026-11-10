@@ -299,7 +299,7 @@ def render(story: dict, audio: str, images: list[str], words: list, scenes: list
         "words": words,
         "durationSeconds": total,
         "ending": story["ending"],
-        "handle": "@MuslimWorld-info",
+        "handle": "Muslim World",
     }
     pp = REMOTION_DIR / "props_story.json"
     pp.write_text(json.dumps(props, ensure_ascii=False))
