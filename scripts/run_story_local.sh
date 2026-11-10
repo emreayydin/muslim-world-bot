@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Local autopilot for the animated story Shorts (launchd: de.muslimworld.story).
-# Fires hourly; story_short.py itself decides whether this slot uploads
-# (max 4/day, >= 3h apart). caffeinate keeps the Mac awake while it works.
+# Runs twice daily; story_short.py keeps the hard cap at 2/day and >= 3h apart.
+# caffeinate keeps the Mac awake while each run works.
 set -u
 REPO="/Users/emre.cya/Projects/muslim-world-bot"
 LOCK="/tmp/muslimworld-story.lock"
@@ -16,7 +16,7 @@ fi
 trap 'rmdir "$LOCK"' EXIT
 
 echo "=== $(date) ==="
-git pull --rebase --autostash -q origin main || echo "git pull failed (offline?) - continuing"
+git pull --rebase --autostash -q origin main || { echo "git sync failed - skip upload so the post history stays safe"; exit 1; }
 
 cd src
 caffeinate -i -s ../venv/bin/python story_short.py

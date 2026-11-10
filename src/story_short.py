@@ -316,8 +316,8 @@ def pick_story(story_id: str | None) -> dict | None:
     stories = all_stories()
     if story_id:
         return next(s for s in stories if s["id"] == story_id)
-    done = history.all_titles()
-    fresh = [s for s in stories if s["title"] not in done]
+    done = history.all_titles()  # normalized to lowercase by history.py
+    fresh = [s for s in stories if s["title"].strip().lower() not in done]
     return fresh[0] if fresh else None
 
 

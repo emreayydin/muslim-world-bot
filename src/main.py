@@ -49,12 +49,10 @@ OUTPUT_DIR = Path("output")
 # Beim Wiedereinschalten hier wieder {1, 3, 6} eintragen.
 LONG_VIDEO_WEEKDAYS = set()
 
-# Self-throttle so the bot paces itself even though GitHub's free cron fires
-# unreliably. The shorts workflow is scheduled far more often than needed (every
-# 2h); these caps decide whether a given run actually uploads. YouTube's free
-# quota = 10,000 units/day, videos.insert = 1,600 → 6 uploads/day max.
-DAILY_UPLOAD_CAP = int(os.environ.get("DAILY_UPLOAD_CAP", "4"))  # 4/Tag seit 16.10.2026 (Emre)
-MIN_HOURS_BETWEEN = float(os.environ.get("MIN_HOURS_BETWEEN", "3.0"))  # 4 Uploads im Fenster 08-20 UTC
+# Final guard for local launchd and any manual/queued runs. The regular plan is
+# two story Shorts per day; long-form stays off until its quality refresh is ready.
+DAILY_UPLOAD_CAP = int(os.environ.get("DAILY_UPLOAD_CAP", "2"))  # 2 YouTube-Shorts pro Tag seit 10.11.2026
+MIN_HOURS_BETWEEN = float(os.environ.get("MIN_HOURS_BETWEEN", "3.0"))  # Mindestabstand zwischen Uploads
 
 
 def _should_skip_for_quota() -> tuple[bool, str]:
