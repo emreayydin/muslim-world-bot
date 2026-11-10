@@ -70,16 +70,28 @@ GAP_SCENE = 0.30   # extra silence when the picture changes
 
 # ---------------------------------------------------------------- audio
 async def _tts(text: str, path: str, voice: str, rate: str, pitch: str) -> list[dict]:
-    com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
-    words = []
-    with open(path, "wb") as f:
-        async for ch in com.stream():
-            if ch["type"] == "audio":
-                f.write(ch["data"])
-            elif ch["type"] == "WordBoundary":
-                s = ch["offset"] / 1e7
-                words.append({"text": ch["text"], "start": s, "end": s + ch["duration"] / 1e7})
-    return words
+    for attempt in range(3):
+        com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
+        words = []
+        try:
+            with open(path, "wb") as f:
+                async for ch in com.stream():
+                    if ch["type"] == "audio":
+                        f.write(ch["data"])
+                    elif ch["type"] == "WordBoundary":
+                        s = ch["offset"] / 1e7
+                        words.append({"text": ch["text"], "start": s, "end": s + ch["duration"] / 1e7})
+            if Path(path).stat().st_size == 0:
+                raise edge_tts.exceptions.NoAudioReceived("TTS returned an empty audio file")
+            return words
+        except Exception as exc:
+            Path(path).unlink(missing_ok=True)
+            if attempt == 2:
+                raise
+            delay = (2, 5)[attempt]
+            log.warning("TTS attempt %d/3 failed (%s); retrying in %ds", attempt + 1, exc, delay)
+            await asyncio.sleep(delay)
+    raise RuntimeError("TTS retry loop ended unexpectedly")
 
 
 def _dur(path: str) -> float:
