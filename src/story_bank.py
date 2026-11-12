@@ -123,7 +123,7 @@ STORIES = [
             {"shot": "tariq opening the door, shocked, frozen, close shot", "lines": [["tariq", "Karim…? What are you doing here?"]]},
             {"shot": "close-up of karim with tears in his eyes, speaking softly", "lines": [["karim", "I was wrong, akhi. Five years is too long. Forgive me."]]},
             {"shot": "tariq crying, stepping forward to hug karim, close shot of tariq", "lines": [["tariq", "I was wrong too. Come here, brother."]]},
-            {"shot": "mother crying with joy at the dinner table as both sons sit beside her, Eid decorations", "lines": [["mother", "Alhamdulillah. My table is full again."]]},
+            {"shot": "mother crying with joy at the dinner table as her two grown-up sons karim and tariq sit beside her, Eid decorations", "lines": [["mother", "Alhamdulillah. My table is full again."]]},
         ],
         "ending": {"arabic": "الحِلْم", "word": "Hilm", "reminder": "The strong man is not the one who wrestles others down, but the one who controls himself when angry.", "source": "Sahih al-Bukhari 6114"},
         "tags": ["anger", "brothers", "family", "islamic story", "forgiveness"],

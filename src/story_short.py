@@ -222,24 +222,92 @@ def scene_prompt(story: dict, shot: str, speaker: str | None = None) -> str:
     return f"{STYLE}. Setting: {story.get('setting', '')}. Scene: {shot}.{talk}{cast} {NEGATIVE_HINT}."
 
 
-def build_images(story: dict, out_dir: Path) -> list[str]:
+# 13.11.: consistent characters. Every character is drawn ONCE as a reference
+# portrait (Z-Image-Turbo); every scene is then built from those portraits with
+# FLUX.2 klein 4B (reference-image editing, Apache-2.0, ~40 s/image), so faces,
+# hair and clothes stay the same across the whole story.
+FLUX2_EDIT = Path.home() / ".local/share/uv/tools/mflux/bin/mflux-generate-flux2-edit"
+PIXAR = ("3D Pixar Disney animated movie still, stylized cartoon characters with big round expressive "
+         "Pixar eyes and soft rounded features, soft cinematic lighting, rich warm colors")
+
+
+def characters_in(story: dict, sc: dict) -> list[str]:
+    """Speaker first, then everyone else named in the shot (max 3 references)."""
+    low = sc["shot"].lower()
+    keys = [k for k in story["characters"] if f"{k} " in f"{low} " or f"{k}'" in low]
+    spk = scene_speaker(sc)
+    if spk in story["characters"]:
+        keys = [spk] + [k for k in keys if k != spk]
+    return keys[:3]
+
+
+def _run_one(spec: Path, i: int, label: str) -> None:
+    r = subprocess.run([str(MFLUX_PY), str(IMG_SCRIPT), str(spec), str(i)])
+    if r.returncode != 0:
+        raise RuntimeError(f"{label} failed")
+
+
+def build_images(story: dict, out_dir: Path, limit: int | None = None) -> list[str]:
+    """limit: stop after creating that many new images (manual step-by-step runs)."""
     out_dir.mkdir(parents=True, exist_ok=True)
+    made = 0
     seed0 = sum(ord(c) for c in story["id"]) * 97
+
+    # 1) one reference portrait per character (one process per image)
+    refs, ref_jobs = {}, []
+    for j, (key, c) in enumerate(story["characters"].items()):
+        rp = out_dir / f"ref_{key}.png"
+        refs[key] = str(rp)
+        ref_jobs.append({"prompt": f"{PIXAR}, vertical 9:16, modest clothing. Character reference "
+                                   f"portrait of {c['look']}. Front view, head and upper body centered, "
+                                   f"looking at the camera, calm closed mouth, gentle neutral expression, "
+                                   f"plain soft warm background. {NEGATIVE_HINT}.",
+                         "out": str(rp), "seed": seed0 + 500 + j})
+    rspec = out_dir / "refs.json"
+    rspec.write_text(json.dumps({"width": 768, "height": 1344, "steps": 9, "jobs": ref_jobs}, indent=1))
+    for j, job in enumerate(ref_jobs):
+        if not Path(job["out"]).exists():
+            if limit is not None and made >= limit:
+                return []
+            _run_one(rspec, j, f"reference {j}")
+            made += 1
+            log.info(f"reference {j + 1}/{len(ref_jobs)} done")
+
+    # 2) scenes from the references (FLUX.2 klein edit), fallback: plain Z-Image
     jobs, paths = [], []
     for i, sc in enumerate(story["scenes"]):
         p = out_dir / f"img_{i:02d}.png"
+        paths.append(str(p))
         jobs.append({"prompt": scene_prompt(story, sc["shot"], scene_speaker(sc)), "out": str(p),
                      "seed": seed0 + i})
-        paths.append(str(p))
     spec = out_dir / "jobs.json"
     spec.write_text(json.dumps({"width": 768, "height": 1344, "steps": 9, "jobs": jobs}, indent=1))
-    # one image per process, one after another (a single batch once froze the Mac)
-    for i, p in enumerate(paths):
+    for i, sc in enumerate(story["scenes"]):
+        p = paths[i]
         if Path(p).exists():
             continue
-        r = subprocess.run([str(MFLUX_PY), str(IMG_SCRIPT), str(spec), str(i)])
-        if r.returncode != 0:
-            raise RuntimeError(f"image {i} failed")
+        if limit is not None and made >= limit:
+            return []
+        made += 1
+        keys = characters_in(story, sc)
+        if keys and FLUX2_EDIT.exists():
+            spk = scene_speaker(sc)
+            who = "; ".join(f"reference image {n + 1} shows {k}" for n, k in enumerate(keys))
+            talk = (f" {spk} has a calm closed mouth, face fully visible and turned towards the camera, "
+                    f"{spk}'s face is the biggest and closest face in the picture." if spk in keys else "")
+            prompt = (f"{PIXAR}, vertical 9:16 composition, modest clothing. Setting: "
+                      f"{story.get('setting', '')}. Scene: {sc['shot']}.{talk} Keep every character "
+                      f"exactly as in the reference images ({who}): same face, hair, headwear "
+                      f"and clothes; add nothing they do not have in the reference. {NEGATIVE_HINT}.")
+            r = subprocess.run([str(FLUX2_EDIT), "--model", "flux2-klein-4b", "--quantize", "8",
+                                "--image-paths", *[refs[k] for k in keys], "--prompt", prompt,
+                                "--width", "768", "--height", "1344", "--steps", "4",
+                                "--seed", str(seed0 + i), "--output", p],
+                               capture_output=True, text=True)
+            if r.returncode != 0 or not Path(p).exists():
+                log.warning(f"scene {i}: reference edit failed, plain image instead\n{r.stderr[-400:]}")
+        if not Path(p).exists():
+            _run_one(spec, i, f"image {i}")
         log.info(f"image {i + 1}/{len(paths)} done")
     missing = [p for p in paths if not Path(p).exists()]
     if missing:
