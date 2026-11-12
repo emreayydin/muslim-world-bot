@@ -2,7 +2,7 @@
 
 Format (since 05.11.2026, modelled on viral "deen tales" Shorts):
   3D-animation stills (Z-Image-Turbo, LOCAL on the Mac, free) with Ken-Burns
-  motion; the characters TALK themselves (own edge-tts voice + local Wav2Lip
+  motion; the characters TALK themselves (own edge-tts voice + local LivePortrait
   lip-sync on every speaking scene, since 05.11. evening), bold
   word-by-word captions, and a closing card with one verified reminder.
 
@@ -215,7 +215,9 @@ def scene_prompt(story: dict, shot: str, speaker: str | None = None) -> str:
     cast = (" Characters: " + "; ".join(looks) + ".") if looks else ""
     talk = ""
     if speaker and speaker in story["characters"]:
-        talk = (f" {speaker} is talking, mouth slightly open, face fully visible and turned towards "
+        # mouth CLOSED: the lip animation opens it; an open mouth in the still
+        # stays open in every pause
+        talk = (f" {speaker} has a calm closed mouth, face fully visible and turned towards "
                 f"the camera, {speaker}'s face is the biggest and closest face in the picture.")
     return f"{STYLE}. Setting: {story.get('setting', '')}. Scene: {shot}.{talk}{cast} {NEGATIVE_HINT}."
 
@@ -246,8 +248,10 @@ def build_images(story: dict, out_dir: Path) -> list[str]:
 
 
 # ---------------------------------------------------------------- lip-sync
-LIP_PY = Path.home() / ".local/share/wav2lip/venv/bin/python"
-LIP_SCRIPT = ROOT / "scripts" / "lipsync.py"
+# 13.11.: LivePortrait (mouth driven by voice loudness + blinking) replaced
+# Wav2Lip, whose painted mouths looked smeared and out of sync on cartoon faces.
+LIP_PY = Path.home() / ".local/share/liveportrait/venv/bin/python"
+LIP_SCRIPT = ROOT / "scripts" / "lp_talk.py"
 FADE = 0.35   # must match FADE in remotion/src/MuslimStory.tsx
 FPS = 30
 
@@ -268,7 +272,7 @@ def build_talking(story: dict, scenes: list, images: list[str], out_dir: Path) -
     import array
     import wave
     if not LIP_PY.exists():
-        log.warning("Wav2Lip not installed - stills only")
+        log.warning("LivePortrait not installed - stills only")
         return [None] * len(images)
     if out_dir.exists():  # clips belong to THIS audio take - never reuse old ones
         shutil.rmtree(out_dir)
@@ -397,7 +401,7 @@ def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "publ
     log.info("Images (local Z-Image-Turbo)...")
     images = build_images(story, work / "images")
 
-    log.info("Lip-sync (local Wav2Lip)...")
+    log.info("Lip-sync (local LivePortrait)...")
     clips = build_talking(story, scenes, images, work / "talk")
 
     log.info("Rendering...")
