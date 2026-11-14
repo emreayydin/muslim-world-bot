@@ -23,8 +23,8 @@ caffeinate -i -s ../venv/bin/python story_short.py
 rc=$?
 cd "$REPO"
 
-if ! git diff --quiet -- history.json; then
-  git add history.json
+if ! git diff --quiet -- history.json tiktok_history.json || [ -n "$(git ls-files --others -- tiktok_history.json)" ]; then
+  git add history.json tiktok_history.json
   git commit -q -m "Update history (story short) [skip ci]"
   git push -q origin HEAD:main || echo "git push failed - will retry next run"
 fi

@@ -444,6 +444,38 @@ def description(story: dict) -> str:
             f"#shorts #islamicstory #muslim {tags}")
 
 
+TIKTOK_LOG = ROOT / "tiktok_history.json"
+
+
+def tiktok_caption(story: dict) -> str:
+    e = story["ending"]
+    tags = ["islamicstory", "muslim", "islam"] + [t.replace(" ", "") for t in story.get("tags", [])
+                                                  if t.replace(" ", "") not in ("islamicstory",)][:3]
+    return (f"{story['hook']}\n\n“{e['reminder']}” — {e['source']}\n\n"
+            f"A fictional animated story with a real reminder.\n" + " ".join("#" + t for t in tags))
+
+
+def post_tiktok(story: dict, video: str) -> None:
+    """Same Short to TikTok @muslimworld0 (separate Chrome, scripts/tiktok_post.py).
+    Never fatal for the YouTube run; never posts the same story twice."""
+    if os.environ.get("TIKTOK_ENABLED", "1") != "1":
+        return
+    done = json.loads(TIKTOK_LOG.read_text()) if TIKTOK_LOG.exists() else []
+    if any(d.get("id") == story["id"] for d in done):
+        log.info("TikTok: story already posted - skip")
+        return
+    try:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import tiktok_post
+        tiktok_post.post(video, tiktok_caption(story))
+        done.append({"id": story["id"], "title": story["title"],
+                     "date": datetime.now().strftime("%Y-%m-%d %H:%M")})
+        TIKTOK_LOG.write_text(json.dumps(done, ensure_ascii=False, indent=2))
+        log.info("TikTok: posted")
+    except Exception as exc:  # TikTok must never break the YouTube autopilot
+        log.warning(f"TikTok post failed: {exc}")
+
+
 def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "public"):
     if not dry_run and not story_id:
         from main import _should_skip_for_quota
@@ -485,6 +517,7 @@ def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "publ
                        privacy=privacy)
     history.add_entry("short", story["title"], "story")
     log.info(f"Done! https://youtube.com/shorts/{vid}")
+    post_tiktok(story, out)
     shutil.rmtree(work, ignore_errors=True)
     return vid
 
