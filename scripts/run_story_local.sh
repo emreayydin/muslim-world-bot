@@ -19,7 +19,10 @@ echo "=== $(date) ==="
 git pull --rebase --autostash -q origin main || { echo "git sync failed - skip upload so the post history stays safe"; exit 1; }
 
 cd src
-caffeinate -i -s ../venv/bin/python story_short.py
+# Mac-weite Render-Sperre (geteilt mit Geldwolf): nie zwei schwere Renders gleichzeitig,
+# sonst haengt der Mac (Watchdog-Panic 14.11.2026 18:37 mitten in diesem Render).
+# lockf wartet bis zu 60 min; die Sperre loest sich auch nach einem Absturz von selbst.
+/usr/bin/lockf -t 3600 /tmp/mac-render.lock caffeinate -i -s ../venv/bin/python story_short.py
 rc=$?
 cd "$REPO"
 
