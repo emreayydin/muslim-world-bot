@@ -111,7 +111,8 @@ async def _tts(text: str, path: str, voice: str, rate: str, pitch: str) -> list[
     for i, (t, v) in enumerate(_variants(text, voice)):
         for attempt in range(2):
             try:
-                words = await _tts_once(t, path, v, rate, pitch)
+                # 15.11.: edge-tts once hung >30 min on one line - hard time limit
+                words = await asyncio.wait_for(_tts_once(t, path, v, rate, pitch), timeout=60)
                 if i:
                     log.warning("TTS fallback used for %r: %r / %s", text, t, v)
                 return words
