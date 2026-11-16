@@ -484,6 +484,15 @@ def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "publ
         if skip:
             log.info(f"Skipping - {reason}.")
             return None
+        # 16.11.: alternate story <-> POV (user decision). After a story comes a
+        # POV day, after a POV a story; falls back to whatever bank has content.
+        last = next((e.get("category") for e in reversed(history._load())
+                     if e.get("category") in ("story", "pov")), None)
+        if last == "story":
+            import pov_short
+            if pov_short.pick(None):
+                return pov_short.run(privacy=privacy)
+            log.info("POV bank empty - story instead")
     story = pick_story(story_id)
     if not story:
         log.warning("Story bank used up - skipping (no repeats). Refill src/story_bank.py.")

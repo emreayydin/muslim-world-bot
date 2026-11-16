@@ -31,13 +31,20 @@ STYLE = ("soft stylized 3D miniature diorama render, cozy toy-like low-poly look
 # that hold/touch something get the hand description, all others "no hands".
 HANDS = ("the viewer's own two hands (light brown skin, sleeves of a white thobe) come in from the "
          "bottom edge")
-NO_HANDS = "no hands, no arms, no body parts visible, empty foreground"
-HAND_WORDS = ("hand", "holding", "phone", "cup", "quran", "wudu")
+HAND_WORDS = ("your hand", "your hands", "holding", "phone", "cup", "quran", "wudu", "your open hands")
+# never mention hands/arms in the other scenes - even "no hands" makes the
+# model draw hands (15.11.); describe a plain eye-level view instead
+NO_HANDS_STYLE = STYLE.replace("first-person POV shot from the eyes of the viewer",
+                               "eye-level view straight ahead as seen by a visitor, wide scenery, "
+                               "clear empty foreground")
 
 
 def shot_prompt(pov: dict, shot: str) -> str:
-    hands = HANDS if any(w in shot.lower() for w in HAND_WORDS) else NO_HANDS
-    return f"{STYLE}, {hands}. Place: {pov['place']}. Scene: {shot}. {ss.NEGATIVE_HINT}."
+    low = shot.lower()
+    if any(w in low for w in HAND_WORDS):
+        return f"{STYLE}, {HANDS}. Place: {pov['place']}. Scene: {shot}. {ss.NEGATIVE_HINT}."
+    shot = shot.replace("first-person view", "eye-level view").replace(", no hands visible", "")
+    return f"{NO_HANDS_STYLE}. Place: {pov['place']}. Scene: {shot}. {ss.NEGATIVE_HINT}."
 
 
 GAP = 0.45
