@@ -147,4 +147,16 @@ NEU = [{'content_type': 'akhlaq',
   'translation': 'Our Lord, perfect for us our light and forgive us; indeed, You are over all '
                  'things competent.',
   'source': "Qur'an 66:8",
-  'tags': ['dua', 'light', 'forgiveness', 'quran']}]
+  'tags': ['dua', 'light', 'forgiveness', 'quran']},
+ {'content_type': 'quran',
+  'title': 'What Happens When You Truly Trust Allah',
+  'hook': 'Are you worried about how things will turn out?',
+  'body': 'Life often brings uncertainty, leaving us anxious about tomorrow. We try to control '
+          "every detail, but some burdens are too heavy to carry alone. The Qur'an offers a "
+          'comforting promise for those moments. When you place your trust completely in Allah, He '
+          'provides for you in ways you never saw coming. You do not have to figure out everything '
+          'today. Turn your worries into reliance, knowing Allah is always enough.',
+  'translation': 'And He will provide for him from where he does not expect. And whoever relies '
+                 'upon Allah, He is sufficient for him.',
+  'source': "Qur'an 65:3",
+  'tags': ['quran', 'tawakkul', 'trust', 'islamicreminder']}]
