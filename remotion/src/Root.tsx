@@ -5,6 +5,7 @@ import { MuslimLong, LongProps } from "./MuslimLong";
 import { MuslimThumb } from "./MuslimThumb";
 import { MuslimStory, StoryProps } from "./MuslimStory";
 import { MuslimPOV, PovProps } from "./MuslimPOV";
+import { MuslimPOV3D, Pov3dProps } from "./pov3d/MuslimPOV3D";
 import "./index.css";
 
 const FPS = 30;
@@ -73,9 +74,23 @@ const calcPov: CalculateMetadataFunction<PovProps> = ({ props }) => ({
   durationInFrames: Math.ceil(props.durationSeconds * FPS), fps: FPS, width: 1080, height: 1920,
 });
 
+const calcPov3d: CalculateMetadataFunction<Pov3dProps> = ({ props }) => ({
+  durationInFrames: Math.ceil(props.durationSeconds * FPS), fps: FPS, width: 1080, height: 1920,
+});
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="MuslimPOV3D"
+        component={MuslimPOV3D}
+        durationInFrames={300}
+        fps={FPS}
+        width={1080}
+        height={1920}
+        defaultProps={{ audio: "pov3d/audio.mp3", shots: [], words: [], durationSeconds: 10, date: "", place: "", hook: "" }}
+        calculateMetadata={calcPov3d}
+      />
       <Composition
         id="MuslimPOV"
         component={MuslimPOV}

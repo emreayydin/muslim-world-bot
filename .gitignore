@@ -15,3 +15,4 @@ authorize_analytics.py
 remotion/public/story/
 remotion/props_story.json
 logs/
+.reanimate/
