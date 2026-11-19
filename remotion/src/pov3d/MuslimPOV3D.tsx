@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, interpolate, staticFile, useCurrentFrame, useVideoConfig, Easing } from "remotion";
+import { AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig, Easing } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -19,6 +19,9 @@ export type Pov3dProps = {
   words: { text: string; start: number; end: number }[];
   durationSeconds: number;
   date: string; place: string; hook: string;
+  ending?: { arabic: string; word: string; reminder: string; source: string } | null;
+  endStart?: number;
+  handle?: string;
 };
 
 const ORANGE = "#f2a03d";
@@ -142,7 +145,35 @@ export const MuslimPOV3D: React.FC<Pov3dProps> = (p) => {
           {ws.map((w) => w.text).join(" ")}
         </div>
       ) : null}
+      {p.ending && p.endStart ? <Ending e={p.ending} start={p.endStart} image={p.shots[p.shots.length - 1].image} /> : null}
+      {p.handle ? (
+        <div style={{ position: "absolute", bottom: 70, width: "100%", textAlign: "center", fontFamily: SANS,
+          fontWeight: 600, fontSize: 28, color: "rgba(255,255,255,0.5)" }}>{p.handle}</div>
+      ) : null}
       <Audio src={staticFile(p.audio)} />
+    </AbsoluteFill>
+  );
+};
+
+// closing card: eyes close on the last shot, then the reminder over the blurred last image
+const Ending: React.FC<{ e: NonNullable<Pov3dProps["ending"]>; start: number; image: string }> = ({ e, start, image }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const t = frame / fps;
+  if (t < start - 0.25) return null;
+  const k = cl(t, start - 0.25, start + 0.5);
+  const op = (d: number) => cl(t, start + d, start + d + 0.7);
+  return (
+    <AbsoluteFill style={{ opacity: k, backgroundColor: "#05050a" }}>
+      <Img src={staticFile(image)} style={{ width: "100%", height: "100%", objectFit: "cover",
+        filter: "blur(18px) brightness(0.4)", transform: "scale(1.15)" }} />
+      <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", padding: 90, textAlign: "center" }}>
+        <div style={{ fontFamily: "Amiri, 'Geeza Pro', serif", fontSize: 140, color: ORANGE, direction: "rtl", opacity: op(0.2) }}>{e.arabic}</div>
+        <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 40, color: "#fff", letterSpacing: 4,
+          textTransform: "uppercase", marginTop: 16, opacity: op(0.5) }}>{e.word}</div>
+        <div style={{ fontFamily: SERIF, fontSize: 56, lineHeight: 1.35, color: "#fff", marginTop: 50, opacity: op(0.9) }}>“{e.reminder}”</div>
+        <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 38, color: ORANGE, marginTop: 40, opacity: op(1.4) }}>{e.source}</div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };

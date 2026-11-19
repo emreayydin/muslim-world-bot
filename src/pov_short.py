@@ -141,6 +141,69 @@ def render(pov: dict, audio: str, images: list[str], words, scenes, total, out_m
     return out_mp4
 
 
+# ---------------------------------------------------------------- 3D look (19.11.)
+# Built with the reanimate skill against .reanimate/pov/spec.md: every AI still
+# gets a depth map (Depth Pro via mflux, bright = near) and becomes a displaced
+# 3D plane the camera moves into (composition MuslimPOV3D in remotion/src/pov3d).
+DEPTH_BIN = Path.home() / ".local/share/uv/tools/mflux/bin/mflux-save-depth"
+
+
+def build_depths(images: list[str]) -> list[str]:
+    out = []
+    for i, img in enumerate(images):
+        d = img[:-4] + "_depth.png"
+        if not Path(d).exists():  # one process per image, like the stills
+            r = subprocess.run([str(DEPTH_BIN), "--image-path", img, "--quantize", "8"],
+                               cwd=str(Path(img).parent), capture_output=True, text=True)
+            if r.returncode != 0 or not Path(d).exists():
+                raise RuntimeError(f"depth map {i} failed: {r.stderr[-300:]}")
+            log.info(f"depth {i + 1}/{len(images)} done")
+        out.append(d)
+    return out
+
+
+def cam_for(scene: dict, i: int) -> str:
+    if scene.get("cam"):
+        return scene["cam"]
+    low = scene["shot"].lower()
+    if i == 0:
+        return "settle"
+    if "walking" in low or "walk " in low:
+        return "walk"
+    if any(w in low for w in ("looking up", "window", "out of", "view of")):
+        return "tilt"
+    return "pan" if i % 2 else "walk"
+
+
+def render3d(pov: dict, audio: str, images: list[str], depths: list[str], words, scenes, total,
+             out_mp4: str) -> str:
+    pub = ss.REMOTION_DIR / "public" / "pov3d"
+    if pub.exists():
+        shutil.rmtree(pub)
+    pub.mkdir(parents=True)
+    shutil.copy(audio, pub / "audio.mp3")
+    n = len(images)
+    shots = []
+    for i, (img, dep) in enumerate(zip(images, depths)):
+        shutil.copy(img, pub / f"img_{i:02d}.png")
+        shutil.copy(dep, pub / f"img_{i:02d}_depth.png")
+        sc = pov["scenes"][i]
+        shots.append({"start": scenes[i]["start"], "end": scenes[n]["start"] if i == n - 1 else scenes[i]["end"],
+                      "time": sc["time"], "cam": cam_for(sc, i), "chip": sc.get("chip"),
+                      "image": f"pov3d/img_{i:02d}.png", "depth": f"pov3d/img_{i:02d}_depth.png"})
+    props = {"audio": "pov3d/audio.mp3", "shots": shots, "words": words, "durationSeconds": total,
+             "date": pov["date"], "place": pov["place"], "hook": pov["hook"],
+             "ending": pov["ending"], "endStart": scenes[n]["start"], "handle": "Muslim World"}
+    pp = ss.REMOTION_DIR / "props_pov3d.json"
+    pp.write_text(json.dumps(props, ensure_ascii=False))
+    r = subprocess.run([str(ss.REMOTION_BIN), "render", "MuslimPOV3D", str(Path(out_mp4).resolve()),
+                        f"--props={pp}", "--gl=angle", "--log=error", "--concurrency=2"],
+                       cwd=str(ss.REMOTION_DIR), capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"Remotion POV3D render failed:\n{r.stderr[-2000:]}")
+    return out_mp4
+
+
 def description(pov: dict) -> str:
     e = pov["ending"]
     facts = "\n".join(f"• {s['chip']['title']} – {s['chip']['sub']}" for s in pov["scenes"] if s.get("chip"))
@@ -169,7 +232,11 @@ def run(pov_id=None, dry_run=False, privacy="public"):
     log.info(f"Audio {total:.1f}s")
     images = build_images(pov, work / "images")
     out = str(ss.OUTPUT_DIR / f"pov_{datetime.now():%Y%m%d_%H%M%S}.mp4")
-    render(pov, audio, images, words, scenes, total, out)
+    if os.environ.get("POV_STYLE", "3d") == "3d":
+        depths = build_depths(images)
+        render3d(pov, audio, images, depths, words, scenes, total, out)
+    else:
+        render(pov, audio, images, words, scenes, total, out)
     log.info(f"Video: {out}")
     if dry_run:
         return out
