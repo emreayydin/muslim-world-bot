@@ -104,7 +104,7 @@ export const MuslimPOV3D: React.FC<Pov3dProps> = (p) => {
         <Sequence key={k} from={Math.round(sh.start * fps)} durationInFrames={Math.max(1, Math.round((sh.end - sh.start + 0.05) * fps))}>
           <OffthreadVideo src={staticFile(sh.video)} volume={0.45}
             playbackRate={Math.min(1, Math.max(0.6, (sh.videoSeconds ?? 4) / Math.max(0.5, sh.end - sh.start)))}
-            style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.04)" }} />
+            style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.02)" }} />
         </Sequence>
       ) : null)}
       {!s.video ? (

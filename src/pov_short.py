@@ -217,6 +217,7 @@ def render3d(pov: dict, audio: str, images: list[str], depths: list[str], words,
 # camera moves, and LTX adds matching ambient sound (footsteps, voices, water).
 LTX_BIN = Path.home() / ".local/share/ltx/ltx-2-mlx/.venv/bin/ltx-2-mlx"
 LTX_MODEL = "dgrauet/ltx-2.3-mlx-q4"
+FPS_CLIP = 30
 MOVE = {"settle": "the view slowly settles as if just waking up",
         "tilt": "the camera tilts up slowly and leans forward",
         "walk": "gentle handheld camera walking forward",
@@ -229,7 +230,7 @@ def motion_prompt(pov: dict, sc: dict, i: int) -> str:
     shot = sc["shot"].replace("first-person view", "first-person POV")
     return (f"{shot}, in {pov['place']}. Soft stylized 3D miniature animation, warm light. "
             f"Small people move naturally in the background, seen from behind, cloth and leaves move "
-            f"gently; {MOVE[cam_for(sc, i)]}. No text. Sound: realistic ambient sound of this place - "
+            f"gently; {MOVE[cam_for(sc, i)]}, smooth and steady. No text. Sound: realistic ambient sound of this place - "
             f"footsteps, distant voices, birds or water where visible, no music.")
 
 
@@ -238,12 +239,14 @@ def build_clips(pov: dict, images: list[str], scenes: list) -> list:
     clips = []
     for i, (img, sc) in enumerate(zip(images, pov["scenes"])):
         dur = max(2.0, scenes[i]["end"] - scenes[i]["start"])
-        frames = min(145, int((dur * 24 + 7) // 8) * 8 + 1)
-        out = img[:-4] + "_clip.mp4"
+        # 19.11.: native 30 fps (= the composition, no 24->30 judder) and 640x1088
+        # for sharper detail; ~330 s per clip
+        frames = min(193, int((dur * FPS_CLIP + 7) // 8) * 8 + 1)
+        out = img[:-4] + "_clip30.mp4"
         if not Path(out).exists():
             r = subprocess.run([str(LTX_BIN), "generate", "--distilled", "--low-ram", "-m", LTX_MODEL,
                                 "--image", img, "0", "1.0", "-p", motion_prompt(pov, sc, i),
-                                "-H", "832", "-W", "480", "-f", str(frames), "--frame-rate", "24",
+                                "-H", "1088", "-W", "640", "-f", str(frames), "--frame-rate", str(FPS_CLIP),
                                 "-s", str(sum(ord(c) for c in pov["id"]) + i), "-o", out],
                                capture_output=True, text=True)
             if r.returncode != 0 or not Path(out).exists():
@@ -251,7 +254,7 @@ def build_clips(pov: dict, images: list[str], scenes: list) -> list:
                 clips.append(None)
                 continue
             log.info(f"clip {i + 1}/{len(images)} done ({frames} frames)")
-        clips.append({"path": out, "seconds": frames / 24})
+        clips.append({"path": out, "seconds": frames / FPS_CLIP})
     return clips
 
 
