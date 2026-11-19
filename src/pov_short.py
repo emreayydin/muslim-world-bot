@@ -176,7 +176,7 @@ def cam_for(scene: dict, i: int) -> str:
 
 
 def render3d(pov: dict, audio: str, images: list[str], depths: list[str], words, scenes, total,
-             out_mp4: str) -> str:
+             out_mp4: str, clips: list | None = None) -> str:
     pub = ss.REMOTION_DIR / "public" / "pov3d"
     if pub.exists():
         shutil.rmtree(pub)
@@ -188,9 +188,15 @@ def render3d(pov: dict, audio: str, images: list[str], depths: list[str], words,
         shutil.copy(img, pub / f"img_{i:02d}.png")
         shutil.copy(dep, pub / f"img_{i:02d}_depth.png")
         sc = pov["scenes"][i]
-        shots.append({"start": scenes[i]["start"], "end": scenes[n]["start"] if i == n - 1 else scenes[i]["end"],
-                      "time": sc["time"], "cam": cam_for(sc, i), "chip": sc.get("chip"),
-                      "image": f"pov3d/img_{i:02d}.png", "depth": f"pov3d/img_{i:02d}_depth.png"})
+        shot = {"start": scenes[i]["start"], "end": scenes[n]["start"] if i == n - 1 else scenes[i]["end"],
+                "time": sc["time"], "cam": cam_for(sc, i), "chip": sc.get("chip"),
+                "image": f"pov3d/img_{i:02d}.png", "depth": f"pov3d/img_{i:02d}_depth.png"}
+        c = (clips or [None] * n)[i]
+        if c:
+            shutil.copy(c["path"], pub / f"clip_{i:02d}.mp4")
+            shot["video"] = f"pov3d/clip_{i:02d}.mp4"
+            shot["videoSeconds"] = c["seconds"]
+        shots.append(shot)
     props = {"audio": "pov3d/audio.mp3", "shots": shots, "words": words, "durationSeconds": total,
              "date": pov["date"], "place": pov["place"], "hook": pov["hook"],
              "ending": pov["ending"], "endStart": scenes[n]["start"], "handle": "Muslim World"}
@@ -202,6 +208,51 @@ def render3d(pov: dict, audio: str, images: list[str], depths: list[str], words,
     if r.returncode != 0:
         raise RuntimeError(f"Remotion POV3D render failed:\n{r.stderr[-2000:]}")
     return out_mp4
+
+
+# ---------------------------------------------------------------- real motion (19.11.)
+# User: "more movement and sounds of people, not still-image-like". Every scene
+# becomes a 4-6 s clip from the local LTX-2.3 video model (q4, --low-ram, one
+# process per clip, ~145 s each, >=30 % RAM free in tests): people walk, the
+# camera moves, and LTX adds matching ambient sound (footsteps, voices, water).
+LTX_BIN = Path.home() / ".local/share/ltx/ltx-2-mlx/.venv/bin/ltx-2-mlx"
+LTX_MODEL = "dgrauet/ltx-2.3-mlx-q4"
+MOVE = {"settle": "the view slowly settles as if just waking up",
+        "tilt": "the camera tilts up slowly and leans forward",
+        "walk": "gentle handheld camera walking forward",
+        "pan": "the camera slowly turns to look around"}
+
+
+def motion_prompt(pov: dict, sc: dict, i: int) -> str:
+    if sc.get("motion"):
+        return sc["motion"]
+    shot = sc["shot"].replace("first-person view", "first-person POV")
+    return (f"{shot}, in {pov['place']}. Soft stylized 3D miniature animation, warm light. "
+            f"Small people move naturally in the background, seen from behind, cloth and leaves move "
+            f"gently; {MOVE[cam_for(sc, i)]}. No text. Sound: realistic ambient sound of this place - "
+            f"footsteps, distant voices, birds or water where visible, no music.")
+
+
+def build_clips(pov: dict, images: list[str], scenes: list) -> list:
+    """One LTX clip per scene, sized to the scene length (frames = 8k+1 at 24 fps)."""
+    clips = []
+    for i, (img, sc) in enumerate(zip(images, pov["scenes"])):
+        dur = max(2.0, scenes[i]["end"] - scenes[i]["start"])
+        frames = min(145, int((dur * 24 + 7) // 8) * 8 + 1)
+        out = img[:-4] + "_clip.mp4"
+        if not Path(out).exists():
+            r = subprocess.run([str(LTX_BIN), "generate", "--distilled", "--low-ram", "-m", LTX_MODEL,
+                                "--image", img, "0", "1.0", "-p", motion_prompt(pov, sc, i),
+                                "-H", "832", "-W", "480", "-f", str(frames), "--frame-rate", "24",
+                                "-s", str(sum(ord(c) for c in pov["id"]) + i), "-o", out],
+                               capture_output=True, text=True)
+            if r.returncode != 0 or not Path(out).exists():
+                log.warning(f"clip {i} failed - depth fallback\n{r.stderr[-300:]}")
+                clips.append(None)
+                continue
+            log.info(f"clip {i + 1}/{len(images)} done ({frames} frames)")
+        clips.append({"path": out, "seconds": frames / 24})
+    return clips
 
 
 def description(pov: dict) -> str:
@@ -234,7 +285,8 @@ def run(pov_id=None, dry_run=False, privacy="public"):
     out = str(ss.OUTPUT_DIR / f"pov_{datetime.now():%Y%m%d_%H%M%S}.mp4")
     if os.environ.get("POV_STYLE", "3d") == "3d":
         depths = build_depths(images)
-        render3d(pov, audio, images, depths, words, scenes, total, out)
+        clips = build_clips(pov, images, scenes) if os.environ.get("POV_MOTION", "1") == "1" else None
+        render3d(pov, audio, images, depths, words, scenes, total, out, clips)
     else:
         render(pov, audio, images, words, scenes, total, out)
     log.info(f"Video: {out}")

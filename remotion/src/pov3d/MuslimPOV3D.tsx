@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig, Easing } from "remotion";
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig, Easing } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -12,7 +12,7 @@ import { DepthScene } from "./DepthScene";
 // accumulate word by word.
 
 export type Pov3dShot = { start: number; end: number; time: string; cam: string; image: string; depth: string;
-  chip?: { title: string; sub: string } | null };
+  chip?: { title: string; sub: string } | null; video?: string; videoSeconds?: number };
 export type Pov3dProps = {
   audio: string;
   shots: Pov3dShot[];
@@ -98,6 +98,16 @@ export const MuslimPOV3D: React.FC<Pov3dProps> = (p) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#07070c" }}>
+      {/* 19.11.: scenes with an LTX clip play the clip (real motion + ambient sound);
+          the clip is stretched to the shot length, its sound sits under the voice */}
+      {p.shots.map((sh, k) => sh.video ? (
+        <Sequence key={k} from={Math.round(sh.start * fps)} durationInFrames={Math.max(1, Math.round((sh.end - sh.start + 0.05) * fps))}>
+          <OffthreadVideo src={staticFile(sh.video)} volume={0.45}
+            playbackRate={Math.min(1, Math.max(0.6, (sh.videoSeconds ?? 4) / Math.max(0.5, sh.end - sh.start)))}
+            style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.04)" }} />
+        </Sequence>
+      ) : null)}
+      {!s.video ? (
       <ThreeCanvas width={width} height={height} linear={false}>
         <Camera cam={cam} />
         <DepthScene key={i} image={s.image} depth={s.depth} />
@@ -106,6 +116,7 @@ export const MuslimPOV3D: React.FC<Pov3dProps> = (p) => {
           <Vignette offset={0.25} darkness={0.55} />
         </EffectComposer>
       </ThreeCanvas>
+      ) : null}
       {/* soft depth: vignette + slight bottom haze */}
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(10,8,20,0.5) 100%)" }} />
       {/* eyelids */}
