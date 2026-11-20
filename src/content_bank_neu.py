@@ -159,4 +159,15 @@ NEU = [{'content_type': 'akhlaq',
   'translation': 'And He will provide for him from where he does not expect. And whoever relies '
                  'upon Allah, He is sufficient for him.',
   'source': "Qur'an 65:3",
-  'tags': ['quran', 'tawakkul', 'trust', 'islamicreminder']}]
+  'tags': ['quran', 'tawakkul', 'trust', 'islamicreminder']},
+ {'content_type': 'quran',
+  'title': 'When You Feel Completely Ununderstood by Others',
+  'hook': 'Allah knows what is inside your heart.',
+  'body': 'Sometimes you try to explain your feelings to people, but no words seem enough. You '
+          'feel alone in your struggles, carrying burdens nobody else can see. In those silent '
+          "moments, remember this beautiful reminder from the Qur'an. Allah created your soul and "
+          'knows every hidden emotion, worry, and hope you hold inside. You never have to explain '
+          'yourself to Him; He already understands you completely.',
+  'translation': 'Does He who created not know, while He is the Subtle, the Acquainted?',
+  'source': "Qur'an 67:14",
+  'tags': ['quran', 'reminder', 'comfort', 'faith']}]
