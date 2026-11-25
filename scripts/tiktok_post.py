@@ -127,21 +127,56 @@ def post(video: str, caption: str, dry_run: bool = False) -> bool:
     SHOT.parent.mkdir(exist_ok=True)
     p.screenshot(str(SHOT))
 
+    # NOT 'post now': videos posted instantly from the automated browser got ~0 views (18.11.2026),
+    # scheduled ones ~700. So schedule 25-50 min ahead via TikTok's own scheduler.
+    import datetime as dt, random
+    t = dt.datetime.now() + dt.timedelta(minutes=random.randint(25, 50))
+    t = t.replace(second=0, microsecond=0) + dt.timedelta(minutes=(-t.minute) % 5)
+    datum, zeit = t.strftime("%Y-%m-%d"), t.strftime("%H:%M")
+    if not p.js(CLICK_TEXT.replace("button,[role=button]", "label,span,div") % ("Zeitplan", "")):
+        raise TikTokError("schedule option not found")
+    time.sleep(2.5)
+    if p.js("document.body.innerText.includes('für eine geplante Veröffentlichung gespeichert')"):
+        raise TikTokError("TikTok asks once for permission to store scheduled videos - click 'Erlauben' in Studio by hand")
+    FIELD = """((re) => { const i=[...document.querySelectorAll('input[type=text]')].find(x=>new RegExp(re).test(x.value));
+      if(!i) return null; i.scrollIntoView({block:'center'}); const q=i.getBoundingClientRect(); return [q.x+q.width/2,q.y+q.height/2]; })(%r)"""
+    OPT = """((sel, txt) => { const e=[...document.querySelectorAll(sel)].find(x=>x.innerText.trim()===txt);
+      if(!e) return false; e.scrollIntoView({block:'center'}); e.click(); return true; })(%r, %r)"""
+    xy = p.js(FIELD % r"^\d{4}-\d{2}-\d{2}$")
+    if not xy: raise TikTokError("date field missing")
+    p.click_xy(*xy); time.sleep(0.8)
+    if not p.js(OPT % (".calendar-wrapper span, .calendar-wrapper div", str(t.day))):
+        raise TikTokError("calendar day not clickable")
+    time.sleep(0.8)
+    xy = p.js(FIELD % r"^\d{2}:\d{2}$")
+    if not xy: raise TikTokError("time field missing")
+    p.click_xy(*xy); time.sleep(0.8)
+    p.js(OPT % (".tiktok-timepicker-option-text.tiktok-timepicker-left", f"{t.hour:02d}")); time.sleep(0.6)
+    p.js(OPT % (".tiktok-timepicker-option-text.tiktok-timepicker-right", f"{t.minute:02d}")); time.sleep(0.6)
+    p.click_xy(1000, 60); time.sleep(0.6)
+    werte = p.js("[...document.querySelectorAll('input[type=text]')].map(i=>i.value)") or []
+    if datum not in werte or zeit not in werte:
+        raise TikTokError(f"schedule not set: {werte} instead of {datum} {zeit}")
+    p.screenshot(str(SHOT))
     if dry_run:
         _discard(p)
-        print(f"dry run ok - screenshot {SHOT}")
+        print(f"dry run ok - would schedule {datum} {zeit}")
         return True
-
-    if not p.js(CLICK_TEXT % ("Veröffentlichen", "")):
-        raise TikTokError("publish button not clickable")
-    time.sleep(3)
-    p.js(CLICK_TEXT % ("Jetzt posten", ""))     # 'post anyway' after content check prompt
-    ok = p.wait_for("location.href.includes('/tiktokstudio/content') || "
-                    "/veröffentlicht|wird hochgeladen|Hochgeladen/.test(document.body.innerText)", 120, 2)
+    for versuch in range(9):   # content check still running -> dialog: cancel, wait, schedule again (never 'post now')
+        if not p.js(CLICK_TEXT % ("Planen", "")):
+            raise TikTokError("schedule button not clickable")
+        time.sleep(4)
+        if not p.js("!![...document.querySelectorAll('[role=dialog],.TUXModal')].find(d=>d.offsetParent!==null)"):
+            break
+        p.js(CLICK_TEXT % ("Abbrechen", ""))
+        time.sleep(30)
+    else:
+        raise TikTokError("content check did not finish")
+    ok = p.wait_for("location.href.includes('/tiktokstudio/content')", 120, 2)
     p.screenshot(str(SHOT))
     if not ok:
         raise TikTokError("no confirmation after publishing (see logs/tiktok_last.jpg)")
-    print("posted to TikTok")
+    print(f"scheduled on TikTok for {datum} {zeit}")
     return True
 
 

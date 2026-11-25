@@ -300,7 +300,8 @@ def build_images(story: dict, out_dir: Path, limit: int | None = None) -> list[s
                       f"{story.get('setting', '')}. Scene: {sc['shot']}.{talk} Keep every character "
                       f"exactly as in the reference images ({who}): same face, hair, headwear "
                       f"and clothes; add nothing they do not have in the reference. {NEGATIVE_HINT}.")
-            r = subprocess.run([str(FLUX2_EDIT), "--model", "flux2-klein-4b", "--quantize", "8",
+            # 18.11.: --low-ram - ohne lag FLUX.2-Edit bei bis zu 27 GB (Mac-Abstuerze, siehe mac-render-guard)
+            r = subprocess.run([str(FLUX2_EDIT), "--model", "flux2-klein-4b", "--quantize", "8", "--low-ram",
                                 "--image-paths", *[refs[k] for k in keys], "--prompt", prompt,
                                 "--width", "768", "--height", "1344", "--steps", "4",
                                 "--seed", str(seed0 + i), "--output", p],
@@ -494,6 +495,12 @@ def run(story_id: str | None = None, dry_run: bool = False, privacy: str = "publ
                 return pov_short.run(privacy=privacy)
             log.info("POV bank empty - story instead")
     story = pick_story(story_id)
+    if not story and not story_id and not dry_run:
+        # 25.11.: an empty story bank must not cost a slot - use a POV day instead
+        import pov_short
+        if pov_short.pick(None):
+            log.info("Story bank empty - POV instead")
+            return pov_short.run(privacy=privacy)
     if not story:
         log.warning("Story bank used up - skipping (no repeats). Refill src/story_bank.py.")
         return None
